@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  package:
+    name: Package tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Build and test
+        run: swift test
+
+  demo:
+    name: Demo app (iOS Simulator)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Generate project
+        run: |
+          brew install xcodegen
+          cd Examples/LevelMapDemo && xcodegen generate
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project Examples/LevelMapDemo/LevelMapDemo.xcodeproj \
+            -scheme LevelMapDemo \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO

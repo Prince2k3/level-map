@@ -1,0 +1,42 @@
+name: LevelMapDemo
+options:
+  bundleIdPrefix: dev.levelmap
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  LevelMap:
+    path: ../..
+targets:
+  LevelMapDemo:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    dependencies:
+      - package: LevelMap
+      # The editor is a debug tool. A real app would link it in Debug builds only.
+      - package: LevelMap
+        product: LevelMapEditor
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.levelmap.demo
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGNING_ALLOWED: NO
+    scheme:
+      testTargets: [LevelMapDemoUITests]
+  LevelMapDemoUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: LevelMapDemo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.levelmap.demo.uitests
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGNING_ALLOWED: NO
