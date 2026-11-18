@@ -320,10 +320,13 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                 if follow != nil {
                     followAvatar(reader, layout: layout, size: size, animation: reduceMotion ? nil : .smooth(duration: 0.6))
                 } else {
-                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.6)) {
+                    // The zoom and the scroll together decide where the avatar is drawn, so they share
+                    // one animation. On different curves the avatar overshoots its resting place.
+                    let animation: Animation? = reduceMotion ? nil : .smooth(duration: 0.6)
+                    withAnimation(animation) {
                         camera = FollowCamera(anchor: camera.anchor)
                     }
-                    scrollToAvatar(reader, layout: layout, viewport: viewport, target: target, animated: !reduceMotion)
+                    scrollToAvatar(reader, layout: layout, viewport: viewport, target: target, animation: animation)
                 }
             }
             .onChange(of: size) {
