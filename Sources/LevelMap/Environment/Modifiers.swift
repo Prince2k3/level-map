@@ -16,6 +16,9 @@ extension EnvironmentValues {
     @Entry var levelMapAvatarVisibility: LevelMapAvatarVisibility? = nil
     @Entry var levelMapRecenterTrigger: LevelMapRecenterTrigger? = nil
     @Entry var levelMapFocusOffset: CGFloat = 0
+    @Entry var levelMapContentMargins = EdgeInsets()
+    @Entry var levelMapRecenterButton: LevelMapRecenterButton? = nil
+    @Entry var levelMapMarks: [LevelMapMarkGroup] = []
 }
 
 private struct LevelMapZoomKey: EnvironmentKey {
@@ -47,6 +50,15 @@ struct LevelMapAvatarVisibility: @unchecked Sendable {
 /// `AnyHashable` is not `Sendable`, but environment values are only read on the main actor.
 struct LevelMapRecenterTrigger: @unchecked Sendable, Equatable {
     let value: AnyHashable
+}
+
+/// Set with ``SwiftUICore/View/levelMapRecenterButton(alignment:_:)``.
+///
+/// `AnyView` and `@MainActor` closures are not `Sendable`, but environment values are only read
+/// on the main actor.
+struct LevelMapRecenterButton: @unchecked Sendable {
+    let alignment: Alignment
+    let make: @MainActor (_ recenter: @escaping @MainActor () -> Void) -> AnyView
 }
 
 extension View {
@@ -165,23 +177,13 @@ extension View {
     }
 
     /// Calls `action` when the avatar scrolls out of view (`false`) or back into it (`true`), and
-    /// once when the map appears. Use it to offer a way back to the player:
+    /// once when the map appears.
     ///
-    /// ```swift
-    /// @State private var avatarVisible = true
-    /// @State private var recenter = 0
+    /// ``levelMapRecenterButton(alignment:_:)`` already offers a way back when the avatar is out
+    /// of view. Use this for anything else that depends on it, such as dimming a header.
     ///
-    /// LevelMap(...) { ... }
-    ///     .levelMapAvatar { Walker() }
-    ///     .onLevelMapAvatarVisibilityChange { avatarVisible = $0 }
-    ///     .levelMapRecenter(on: recenter)
-    ///     .overlay(alignment: .bottomTrailing) {
-    ///         if !avatarVisible {
-    ///             Button("Back to you", systemImage: "location.fill") { recenter += 1 }
-    ///         }
-    ///     }
-    /// ```
-    /// The avatar counts as out of view when it is within 40 points of the map's ends.
+    /// The avatar counts as out of view when it is within 40 points of the map's ends, or behind
+    /// the ``levelMapContentMargins(_:_:)``.
     public func onLevelMapAvatarVisibilityChange(_ action: @escaping @MainActor (_ isVisible: Bool) -> Void) -> some View {
         environment(\.levelMapAvatarVisibility, LevelMapAvatarVisibility(action: action))
     }
@@ -193,9 +195,75 @@ extension View {
     }
 
     /// Moves where the current level rests when the map scrolls to it, in points towards the top
-    /// (or leading edge) of the map. Use it to keep the player clear of cards floating over the
-    /// bottom of the map. Defaults to 0, the middle.
+    /// (or leading edge) of the map. Defaults to 0, the middle of the part of the map that
+    /// ``levelMapContentMargins(_:_:)`` leaves uncovered.
     public func levelMapFocusOffset(_ offset: CGFloat) -> some View {
         environment(\.levelMapFocusOffset, offset)
+    }
+
+    /// Tells the map how much of it is covered by views floating over its edges, such as a panel
+    /// or a banner, so it keeps the player in the part that shows.
+    ///
+    /// ```swift
+    /// LevelMap(stops, route: .serpentine(), current: arrived) { ... }
+    ///     .levelMapAvatar { Walker() }
+    ///     .levelMapContentMargins(.bottom, panelHeight)
+    ///     .overlay(alignment: .bottom) { Panel() }
+    /// ```
+    /// The current level rests in the middle of the uncovered part, the avatar counts as out of
+    /// view behind the margins, and ``levelMapRecenterButton(alignment:_:)`` stays clear of them.
+    /// The map still draws under the margins, and changing them doesn't scroll it, so a panel can
+    /// grow and shrink without the map moving.
+    ///
+    /// ``levelMapFollowsAvatar(_:zoom:anchor:scalesMarkers:)`` holds the avatar at a fraction of
+    /// the whole map, ignoring the margins for the same reason. Pick an anchor clear of the panel.
+    ///
+    /// Call it again to set other edges; later calls win for the edges they name.
+    public func levelMapContentMargins(_ edges: Edge.Set = .all, _ length: CGFloat) -> some View {
+        transformEnvironment(\.levelMapContentMargins) { margins in
+            let length = max(length, 0)
+            if edges.contains(.top) { margins.top = length }
+            if edges.contains(.leading) { margins.leading = length }
+            if edges.contains(.bottom) { margins.bottom = length }
+            if edges.contains(.trailing) { margins.trailing = length }
+        }
+    }
+
+    /// Shows a button that scrolls back to the avatar while the player has scrolled it out of
+    /// view, and hides it again once the avatar is back.
+    ///
+    /// ```swift
+    /// LevelMap(stops, route: .serpentine(), current: arrived) { ... }
+    ///     .levelMapAvatar { Walker() }
+    ///     .levelMapRecenterButton()
+    /// ```
+    /// The button sits in a corner of the map, inside its ``levelMapContentMargins(_:_:)``, and is
+    /// hidden while the map follows the avatar.
+    /// - Parameter alignment: Where the button sits on the map.
+    public func levelMapRecenterButton(alignment: Alignment = .bottomTrailing) -> some View {
+        levelMapRecenterButton(alignment: alignment) { recenter in
+            Button("Back to you", systemImage: "location.fill") { recenter() }
+                .buttonStyle(.borderedProminent)
+        }
+    }
+
+    /// Shows your own button that scrolls back to the avatar while the player has scrolled it out
+    /// of view. Call `recenter` from it to scroll back.
+    ///
+    /// ```swift
+    /// .levelMapRecenterButton { recenter in
+    ///     Button("Back to you", systemImage: "location.fill", action: recenter)
+    ///         .buttonStyle(.bordered)
+    /// }
+    /// ```
+    /// - Parameters:
+    ///   - alignment: Where the button sits on the map.
+    ///   - button: The button, given the action that scrolls back to the avatar.
+    public func levelMapRecenterButton(
+        alignment: Alignment = .bottomTrailing,
+        @ViewBuilder _ button: @escaping @MainActor (_ recenter: @escaping @MainActor () -> Void) -> some View
+    ) -> some View {
+        environment(\.levelMapRecenterButton,
+                    LevelMapRecenterButton(alignment: alignment) { AnyView(button($0)) })
     }
 }

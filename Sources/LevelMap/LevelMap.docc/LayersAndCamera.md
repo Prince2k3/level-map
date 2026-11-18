@@ -99,22 +99,54 @@ by dividing by ``LevelMapGeometry/zoom``; nodes that scale themselves can read
 When the player scrolls away from the avatar, offer to bring them back:
 
 ```swift
-@State private var avatarVisible = true
-@State private var recenter = 0
-
 LevelMap(...) { ... }
     .levelMapAvatar { Walker() }
-    .onLevelMapAvatarVisibilityChange { avatarVisible = $0 }
-    .levelMapRecenter(on: recenter)
-    .overlay(alignment: .bottomTrailing) {
-        if !avatarVisible {
-            Button("Back to you", systemImage: "location.fill") { recenter += 1 }
-        }
+    .levelMapRecenterButton()
+```
+
+The button appears while the avatar is off screen and the camera isn't following it. Pass a
+closure to draw your own, calling `recenter` when it's tapped:
+
+```swift
+.levelMapRecenterButton(alignment: .bottomLeading) { recenter in
+    Button("Back to you", systemImage: "location.fill", action: recenter)
+        .buttonStyle(.bordered)
+}
+```
+
+To drive the scroll from elsewhere, use ``SwiftUICore/View/onLevelMapAvatarVisibilityChange(_:)``
+and ``SwiftUICore/View/levelMapRecenter(on:)`` instead.
+
+## Make room for floating content
+
+If a panel or cards float over the bottom of the map, tell it how much they cover:
+
+```swift
+LevelMap(...) { ... }
+    .levelMapContentMargins(.bottom, panelHeight)
+```
+
+The current level then rests in the middle of what is still visible, the avatar counts as off
+screen once it slides under the panel, and the recenter button sits above it. The map itself
+still fills the space, so it shows through a translucent panel, and changing the margins
+doesn't scroll it. ``SwiftUICore/View/levelMapFocusOffset(_:)`` nudges the resting point
+further.
+
+## Mark the road
+
+Marks are views placed along the road, such as gems to collect or signs. Unlike layers, they
+take touches and VoiceOver reads them:
+
+```swift
+LevelMap(...) { ... }
+    .levelMapMarks(gems, at: \.level, placement: .outside()) { gem in
+        Button { collect(gem) } label: { GemBubble(gem: gem) }
     }
 ```
 
-If cards float over the bottom of the map, ``SwiftUICore/View/levelMapFocusOffset(_:)`` moves
-where the current level rests so it stays clear of them.
+Positions are in levels, so `2.5` sits halfway between levels 2 and 3. A mark placed
+``LevelMapMarkPlacement/outside(spacing:)`` sits beside the road on the side nearer the edge
+and is kept inside the map; ``LevelMapMarkPlacement/inside(spacing:)`` takes the other side.
 
 ## Topics
 
@@ -135,3 +167,11 @@ where the current level rests so it stays clear of them.
 - ``SwiftUICore/View/onLevelMapAvatarVisibilityChange(_:)``
 - ``SwiftUICore/View/levelMapRecenter(on:)``
 - ``SwiftUICore/View/levelMapFocusOffset(_:)``
+- ``SwiftUICore/View/levelMapRecenterButton(alignment:)``
+- ``SwiftUICore/View/levelMapRecenterButton(alignment:_:)``
+- ``SwiftUICore/View/levelMapContentMargins(_:_:)``
+
+### Marks
+
+- ``SwiftUICore/View/levelMapMarks(_:at:placement:content:)``
+- ``LevelMapMarkPlacement``

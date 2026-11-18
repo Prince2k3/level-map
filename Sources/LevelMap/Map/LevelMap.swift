@@ -34,6 +34,9 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     @Environment(\.levelMapAvatarVisibility) private var avatarVisibility
     @Environment(\.levelMapRecenterTrigger) private var recenterTrigger
     @Environment(\.levelMapFocusOffset) private var focusOffset
+    @Environment(\.levelMapContentMargins) private var contentMargins
+    @Environment(\.levelMapRecenterButton) private var recenterButton
+    @Environment(\.levelMapMarks) private var marks
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var rotorNamespace
     /// Where the avatar stands. Lags `current` while the avatar walks; `nil` until the map appears.
@@ -51,6 +54,9 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     /// Whether the avatar was last seen on screen, so a walk only carries the map along while the
     /// player is watching it rather than after they have scrolled away.
     @State private var sighting = AvatarSighting()
+    /// The same as `sighting`, but kept as state for the recenter button, so only a map that
+    /// shows one is redrawn when the avatar comes and goes.
+    @State private var avatarInView = true
     /// Chunks added at a time when an endless map nears its end.
     private let pageSize = 6
 
@@ -203,18 +209,22 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                     .accessibilityHidden(true)
                 }
                 .overlayPreferenceValue(ChunkBoundsKey.self) { bounds in
-                    if avatar != nil || overlay != nil || layers.contains(where: { $0.placement == .aboveNodes }) {
+                    if avatar != nil || overlay != nil || !marks.isEmpty
+                        || layers.contains(where: { $0.placement == .aboveNodes }) {
                         GeometryReader { proxy in
+                            let placed = bounds.keys.sorted().compactMap { index in
+                                bounds[index].map { (index: index, rect: proxy[$0]) }
+                            }
                             VisibilityReporter(isVisible: avatarIsVisible(bounds: bounds, proxy: proxy, layout: layout,
                                                                           target: target, viewport: viewport)) { visible in
                                 sighting.isVisible = visible
                                 avatarVisibility?.action(visible)
+                                if recenterButton != nil {
+                                    withAnimation(.snappy) { avatarInView = visible }
+                                }
                             }
-                            layerViews(.aboveNodes,
-                                       placed: bounds.keys.sorted().compactMap { index in
-                                           bounds[index].map { (index, proxy[$0]) }
-                                       },
-                                       layout: layout)
+                            layerViews(.aboveNodes, placed: placed, layout: layout)
+                            marksLayer(placed: placed, layout: layout)
                             if let avatar {
                                 avatarLayer(avatar, bounds: bounds, proxy: proxy, layout: layout, target: target)
                             }
@@ -249,6 +259,16 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
             // Clipping doesn't limit touches: magnified, the map would take taps meant for the
             // views around it. Keep its touches to the same area it draws in.
             .contentShape(ZoomClip(isZoomed: true, axis: axis, safeArea: safeArea))
+            .overlay(alignment: recenterButton?.alignment ?? .bottomTrailing) {
+                if let recenterButton, !avatarInView, follow == nil {
+                    recenterButton.make {
+                        scrollToAvatar(reader, layout: layout, viewport: viewport, target: target, animated: !reduceMotion)
+                    }
+                    .padding(16)
+                    .padding(contentMargins)
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
             // Shows when the map is pulled past its ends.
             .background { plan.theme(forChapter: 0).background.view(axis: axis)
                 .ignoresSafeArea(edges: axis == .vertical ? .vertical : .horizontal) }
@@ -369,32 +389,69 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     private func layerViews(_ placement: LevelMapLayerPlacement, placed: [(index: Int, rect: CGRect)],
                             layout: ChunkLayout) -> some View {
         let matching = layers.filter { $0.placement == placement }
-        if !matching.isEmpty, let first = placed.first {
-            let union = placed.dropFirst().reduce(first.rect) { $0.union($1.rect) }
-            let along = { (rect: CGRect) in self.axis == .vertical ? rect.minY : rect.minX }
-            let alongOffset = along(first.rect) - layout.chunk(first.index).origin
-            let low = placed.map(\.index).min() ?? first.index
-            let high = placed.map(\.index).max() ?? first.index
-            // The measured rects wobble in their last digits as the map glides. Rounded, the size
-            // holds still, so a layer that compares it isn't redrawn every frame.
-            let size = CGSize(width: (union.width * 1000).rounded() / 1000,
-                              height: (union.height * 1000).rounded() / 1000)
-            let geometry = LevelMapGeometry(size: size, axis: axis, layout: layout,
-                                            levels: layout.chunk(low).levels.lowerBound..<layout.chunk(high).levels.upperBound,
-                                            originAlong: along(union) - alongOffset, mirrored: startsAtEnd,
-                                            zoom: layerZoom)
+        if !matching.isEmpty, let (geometry, origin) = layerGeometry(placed: placed, layout: layout) {
             ForEach(matching.indices, id: \.self) { index in
-                matching[index].make(geometry)
-                    .frame(width: size.width, height: size.height, alignment: .topLeading)
-                    // Bottom-up maps are mirrored as a whole; the layer is mirrored back so its
-                    // content stands the right way up. LevelMapGeometry flips its points to match.
-                    .scaleEffect(x: startsAtEnd && axis == .horizontal ? -1 : 1,
-                                 y: startsAtEnd && axis == .vertical ? -1 : 1)
-                    .offset(x: union.minX, y: union.minY)
+                upright(matching[index].make(geometry), geometry: geometry, origin: origin)
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
+    }
+
+    /// The ``levelMapMarks(_:at:placement:content:)`` marks near the laid-out chunks.
+    @ViewBuilder
+    private func marksLayer(placed: [(index: Int, rect: CGRect)], layout: ChunkLayout) -> some View {
+        if !marks.isEmpty, let (geometry, origin) = layerGeometry(placed: placed, layout: layout) {
+            // A level either side, so a mark beside the first or last level doesn't pop in late.
+            let range = Double(geometry.levels.lowerBound) - 1...Double(geometry.levels.upperBound)
+            let scale = markerScale
+            upright(MarkLayout(axis: axis, scale: scale) {
+                ForEach(marks.indices, id: \.self) { group in
+                    let placement = marks[group].placement
+                    ForEach(marks[group].marks.filter { range.contains($0.position) }, id: \.id) { mark in
+                        if let point = geometry.point(atLevel: mark.position),
+                           let side = geometry.placement(ofLevel: mark.position) {
+                            mark.view
+                                .scaleEffect(scale)
+                                .layoutValue(key: MarkSpotKey.self,
+                                             value: MarkSpot(point: point, direction: placement.direction(at: side),
+                                                             spacing: placement.spacing))
+                        }
+                    }
+                }
+            }, geometry: geometry, origin: origin)
+        }
+    }
+
+    /// The geometry handed to layers drawn across `placed`, and where their top-leading corner is.
+    private func layerGeometry(placed: [(index: Int, rect: CGRect)],
+                               layout: ChunkLayout) -> (LevelMapGeometry, CGPoint)? {
+        guard let first = placed.first else { return nil }
+        let union = placed.dropFirst().reduce(first.rect) { $0.union($1.rect) }
+        let along = { (rect: CGRect) in self.axis == .vertical ? rect.minY : rect.minX }
+        let alongOffset = along(first.rect) - layout.chunk(first.index).origin
+        let low = placed.map(\.index).min() ?? first.index
+        let high = placed.map(\.index).max() ?? first.index
+        // The measured rects wobble in their last digits as the map glides. Rounded, the size
+        // holds still, so a layer that compares it isn't redrawn every frame.
+        let size = CGSize(width: (union.width * 1000).rounded() / 1000,
+                          height: (union.height * 1000).rounded() / 1000)
+        let geometry = LevelMapGeometry(size: size, axis: axis, layout: layout,
+                                        levels: layout.chunk(low).levels.lowerBound..<layout.chunk(high).levels.upperBound,
+                                        originAlong: along(union) - alongOffset, mirrored: startsAtEnd,
+                                        zoom: layerZoom)
+        return (geometry, union.origin)
+    }
+
+    /// Sizes `content` to a layer and stands it the right way up over the chunks it covers.
+    private func upright(_ content: some View, geometry: LevelMapGeometry, origin: CGPoint) -> some View {
+        content
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+            // Bottom-up maps are mirrored as a whole; the layer is mirrored back so its content
+            // stands the right way up. LevelMapGeometry flips its points to match.
+            .scaleEffect(x: startsAtEnd && axis == .horizontal ? -1 : 1,
+                         y: startsAtEnd && axis == .vertical ? -1 : 1)
+            .offset(x: origin.x, y: origin.y)
     }
 
     /// The zoom handed to layers.
@@ -408,7 +465,14 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
 
     static var viewportSpace: String { "LevelMapViewport" }
 
-    /// Whether the avatar, at rest, is on screen and at least 40 points from the map's ends.
+    /// The content margins at the top and bottom of the map (or its leading and trailing edges).
+    private var marginsAlong: (start: CGFloat, end: CGFloat) {
+        axis == .vertical ? (contentMargins.top, contentMargins.bottom)
+                          : (contentMargins.leading, contentMargins.trailing)
+    }
+
+    /// Whether the avatar, at rest, is on screen and at least 40 points from the ends of the part of
+    /// the map the content margins leave uncovered.
     private func avatarIsVisible(bounds: [Int: Anchor<CGRect>], proxy: GeometryProxy, layout: ChunkLayout,
                                  target: Int, viewport: CGFloat) -> Bool {
         let level = avatarLevel ?? target
@@ -423,9 +487,11 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         let frame = proxy.frame(in: .named(Self.viewportSpace))
         let along = layout.road.sample(atDistance: distance).position.y + offset
             + (axis == .vertical ? frame.minY : frame.minX)
-        // The scroll view's own coordinates are unmirrored, but the margin is the same at both ends.
-        let margin = min(40, viewport / 4)
-        return along >= margin && along <= viewport - margin
+        // The scroll view's own coordinates are unmirrored; the margins are on screen.
+        let onScreen = startsAtEnd ? viewport - along : along
+        let (start, end) = marginsAlong
+        let margin = min(40, max(viewport - start - end, 0) / 4)
+        return onScreen >= start + margin && onScreen <= viewport - end - margin
     }
 
     /// Scrolls and zooms so the avatar sits at the follow anchor, as near as the map's edges allow.
@@ -504,7 +570,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         return min(max(current, 0), max(count - 1, 0))
     }
 
-    /// Brings a level to rest in one step: the middle of the map, moved by the focus offset.
+    /// Brings a level to rest in one step: the middle of the uncovered map, moved by the focus offset.
     private func scroll(_ reader: ScrollViewProxy, to level: Int, layout: ChunkLayout,
                         viewport: CGFloat, animated: Bool) {
         guard layout.levelCount != 0, let distance = layout.road.distance(ofLevel: level) else { return }
@@ -520,7 +586,8 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         guard layout.levelCount != 0 else { return }
         // A positive offset moves the resting point up the screen (or towards the leading edge).
         // The scroll view's own coordinates run the other way on mirrored maps.
-        let screenTarget = viewport / 2 - focusOffset
+        let (start, end) = marginsAlong
+        let screenTarget = start + max(viewport - start - end, 0) / 2 - focusOffset
         let target = startsAtEnd ? viewport - screenTarget : screenTarget
         let (chunk, anchor) = layout.scrollAnchor(forDistance: distance, nearLevel: level,
                                                   target: target, viewport: viewport)

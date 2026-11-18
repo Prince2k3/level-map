@@ -16,8 +16,6 @@ struct TrailMap: View {
     var legLength = 2
 
     @State private var dayStart: Int?
-    @State private var walkerVisible = true
-    @State private var recenter = 0
 
     /// The trail goes on as far as the walker does.
     private static let stops = EndlessLevels()
@@ -55,20 +53,12 @@ struct TrailMap: View {
         .levelMapAvatar { TrailWalker(isLive: walking) }
         .levelMapProgress(toNext: progress)
         .levelMapFollowsAvatar(walking)
-        .onLevelMapAvatarVisibilityChange { visible in
-            withAnimation(.snappy) { walkerVisible = visible }
-        }
-        .levelMapRecenter(on: recenter)
-        .overlay(alignment: .bottomTrailing) {
-            if !walkerVisible && !walking {
-                Button("Back to you", systemImage: "location.fill") { recenter += 1 }
-                    .font(.subheadline.weight(.semibold))
-                    .buttonStyle(.borderedProminent)
-                    .tint(.trailAccent)
-                    .padding(16)
-                    .transition(.scale.combined(with: .opacity))
-                    .accessibilityIdentifier("backToYou")
-            }
+        .levelMapRecenterButton { recenter in
+            Button("Back to you", systemImage: "location.fill", action: recenter)
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.borderedProminent)
+                .tint(.trailAccent)
+                .accessibilityIdentifier("backToYou")
         }
         .onAppear { dayStart = current }
         // Going back (the demo's "Go to 1") starts a new day.

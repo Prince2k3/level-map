@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `levelMapRecenterButton(alignment:)` and `levelMapRecenterButton(alignment:_:)`, a "Back to
+  you" button that appears while the avatar is off screen and the camera isn't following it.
+- `levelMapContentMargins(_:_:)`, for panels that float over the map. The current level rests
+  in the middle of what is left uncovered, and the avatar counts as off screen once it is under
+  a panel.
+- `levelMapMarks(_:at:placement:content:)` and `LevelMapMarkPlacement`, for views placed along
+  the road that take touches, such as collectibles.
+
+### Changed
+
+- The Trail demo uses `levelMapRecenterButton` in place of its own overlay.
+
+### Fixed
+
+- When following stops, the zoom out and the scroll back to the avatar run as one animation
+  instead of two that pull against each other.
+
 ## 0.2.0 (2026-11-18)
 
 ### Added
