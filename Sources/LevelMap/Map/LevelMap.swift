@@ -138,6 +138,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
             ?? max(loadedChunks, layout.chunkIndex(containing: target) + pageSize)
 
         let plan = ThemePlan(base: theme, chapters: chapters, transition: transition)
+        let scenes = ChunkSceneCache(layout: layout, plan: plan, crossSize: crossSize)
 
         return ScrollViewReader { reader in
             ScrollView(axis == .vertical ? .vertical : .horizontal) {
@@ -148,7 +149,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                     ForEach(0..<chunkCount, id: \.chunkID) { index in
                         let chunk = layout.chunk(index)
                         ChunkView(layout: layout, chunk: chunk,
-                                  scene: ChunkScene(layout: layout, chunk: chunk, plan: plan, crossSize: crossSize),
+                                  scene: scenes.scene(forChunk: index, scenery: true),
                                   plan: plan, data: data, frame: frame(chunk, crossSize: crossSize),
                                   mirrored: startsAtEnd, current: current,
                                   unlockAnimation: unlockAnimation,
@@ -182,11 +183,9 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                     GeometryReader { proxy in
                         let placed = bounds.keys.sorted().compactMap { index in
                             bounds[index].map { anchor in
-                                let chunk = layout.chunk(index)
-                                return PlacedChunk(index: index, rect: proxy[anchor],
-                                                   scene: ChunkScene(layout: layout, chunk: chunk, plan: plan,
-                                                                     crossSize: crossSize, scenery: false),
-                                                   frame: frame(chunk, crossSize: crossSize))
+                                PlacedChunk(index: index, rect: proxy[anchor],
+                                            scene: scenes.scene(forChunk: index, scenery: false),
+                                            frame: frame(layout.chunk(index), crossSize: crossSize))
                             }
                         }
                         let completed = completedDistance(in: layout)
