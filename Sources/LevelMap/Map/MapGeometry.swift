@@ -35,7 +35,7 @@ public struct LevelMapGeometry: Sendable {
     /// The route `y` (along the road's axis) at the layer's leading edge, before mirroring.
     let originAlong: CGFloat
     let mirrored: Bool
-    let road: [CGPoint]
+    let road: RoadDistanceIndex
 
     init(size: CGSize, axis: Axis, layout: ChunkLayout, levels: Range<Int>, originAlong: CGFloat,
          mirrored: Bool, zoom: CGFloat) {
@@ -50,8 +50,10 @@ public struct LevelMapGeometry: Sendable {
         // The road through the layer and a little beyond, for distanceToRoad(from:).
         let start = layout.boundaryDistance(beforeLevel: max(levels.lowerBound - 1, 0))
         let end = layout.boundaryDistance(beforeLevel: levels.upperBound + 1)
-        road = layout.roadPoints(from: start, to: end, step: 6, origin: 0)
-            .map { Self.location(of: $0, axis: axis, size: size, originAlong: originAlong, mirrored: mirrored) }
+        road = RoadDistanceIndex {
+            layout.roadPoints(from: start, to: end, step: 6, origin: 0)
+                .map { Self.location(of: $0, axis: axis, size: size, originAlong: originAlong, mirrored: mirrored) }
+        }
     }
 
     /// Where the road is at `level`, or `nil` for a position past the end of an empty map.
@@ -81,7 +83,7 @@ public struct LevelMapGeometry: Sendable {
     /// How far `point` is from the nearest part of the road inside the layer. Use it to keep
     /// scenery clear of the road.
     public func distanceToRoad(from point: CGPoint) -> CGFloat {
-        Scenery.distanceSquared(from: point, to: road).squareRoot()
+        road.distance(from: point)
     }
 
     /// Where `level` sits across the map, as it is passed to a ``LevelMap`` node.

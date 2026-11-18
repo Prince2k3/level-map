@@ -208,20 +208,26 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                     }
                     .accessibilityHidden(true)
                 }
+                // Kept apart from the layers below: it reads where the content is in the viewport,
+                // which changes on every scroll frame, and that would rebuild every layer with it.
+                .overlayPreferenceValue(ChunkBoundsKey.self) { bounds in
+                    GeometryReader { proxy in
+                        VisibilityReporter(isVisible: avatarIsVisible(bounds: bounds, proxy: proxy, layout: layout,
+                                                                      target: target, viewport: viewport)) { visible in
+                            sighting.isVisible = visible
+                            avatarVisibility?.action(visible)
+                            if recenterButton != nil {
+                                withAnimation(.snappy) { avatarInView = visible }
+                            }
+                        }
+                    }
+                }
                 .overlayPreferenceValue(ChunkBoundsKey.self) { bounds in
                     if avatar != nil || overlay != nil || !marks.isEmpty
                         || layers.contains(where: { $0.placement == .aboveNodes }) {
                         GeometryReader { proxy in
                             let placed = bounds.keys.sorted().compactMap { index in
                                 bounds[index].map { (index: index, rect: proxy[$0]) }
-                            }
-                            VisibilityReporter(isVisible: avatarIsVisible(bounds: bounds, proxy: proxy, layout: layout,
-                                                                          target: target, viewport: viewport)) { visible in
-                                sighting.isVisible = visible
-                                avatarVisibility?.action(visible)
-                                if recenterButton != nil {
-                                    withAnimation(.snappy) { avatarInView = visible }
-                                }
                             }
                             layerViews(.aboveNodes, placed: placed, layout: layout)
                             marksLayer(placed: placed, layout: layout)
