@@ -6,6 +6,8 @@ struct MapDemo: View {
         case world = "World", serpentine = "Wave", zigzag = "Zigzag", spline = "Spline"
         /// Made in the editor tab and pasted in as `ExportedWorld.swift`.
         case exported = "Exported"
+        /// A hiking trail built from layers, placements and the follow camera. See `TrailDemo.swift`.
+        case trail = "Trail"
         var id: Self { self }
 
         var route: LevelRoute {
@@ -19,7 +21,7 @@ struct MapDemo: View {
                     Zigzag(levels: 6, amplitude: 0.25, halfWaves: 2)
                     Repeat { Serpentine(levels: 6, halfWaves: 2) }
                 }
-            case .serpentine: .serpentine(amplitude: 0.35)
+            case .serpentine, .trail: .serpentine(amplitude: 0.35)
             case .zigzag: .zigzag()
             case .spline:
                 .spline([.init(x: 0.5, y: 0), .init(x: 0.15, y: 0.35), .init(x: 0.85, y: 0.7), .init(x: 0.5, y: 1)],
@@ -41,7 +43,9 @@ struct MapDemo: View {
     /// Launch with `-look Meadow` (any theme title) to open with that look.
     @State private var look = Look(rawValue: UserDefaults.standard.string(forKey: "look") ?? "") ?? .chapters
     /// `-current 0` on launch opens on that level.
-    @State private var current = UserDefaults.standard.string(forKey: "current").flatMap(Int.init) ?? 4_999
+    /// Already within the sample's levels, so the map's first scroll lands on it.
+    @State private var current = Self.clamped(UserDefaults.standard.string(forKey: "current").flatMap(Int.init) ?? 4_999,
+                                              for: Sample(rawValue: UserDefaults.standard.string(forKey: "sample") ?? "") ?? .world)
     /// `-topDown` on launch puts level 1 at the top.
     @State private var startsAtEnd = !ProcessInfo.processInfo.arguments.contains("-topDown")
     // `-horizontal` on launch starts the demo in horizontal mode (handy for UI checks).
@@ -51,6 +55,14 @@ struct MapDemo: View {
     @State private var walking = ProcessInfo.processInfo.arguments.contains("-walk")
     @State private var metresLeft = Self.legLength
     private static let legLength = 120.0
+
+    /// The trail and the lessons open near their start.
+    private static func clamped(_ level: Int, for sample: Sample) -> Int {
+        switch sample {
+        case .trail: min(level, 3)
+        default: level
+        }
+    }
     /// Metres walked per simulated location update. `-walkStep 5` on launch changes it.
     private static let walkStep: Double = {
         let step = UserDefaults.standard.double(forKey: "walkStep")
@@ -65,7 +77,10 @@ struct MapDemo: View {
         VStack(spacing: 0) {
             controls
             Group {
-                if sample == .exported {
+                if sample == .trail {
+                    TrailMap(current: current, progress: 1 - metresLeft / Self.legLength, walking: walking,
+                             startsAtEnd: startsAtEnd)
+                } else if sample == .exported {
                     // Exactly what the editor's usage comment says to write.
                     map.tidewaterLook()
                 } else {
@@ -76,6 +91,9 @@ struct MapDemo: View {
             .levelMapEdgeInset(sample.nodeSize / 2 + 46)
             // Rebuild the map when its shape changes, so it reopens on the current level.
             .id("\(sample)-\(startsAtEnd)-\(horizontal)")
+        }
+        .onChange(of: sample, initial: true) {
+            current = Self.clamped(current, for: sample)
         }
         .task {
             // `-autoplay` completes a few levels on its own, for recording the README GIFs.
@@ -131,10 +149,18 @@ struct MapDemo: View {
                     .font(.system(size: 30))
                     .foregroundStyle(.white, .indigo)
                     .shadow(color: .black.opacity(0.3), radius: 2, y: 2)
-                    .offset(y: -(sample.nodeSize / 2 + 22))
+                    // Lifted clear of the node while standing at one, and down on the road
+                    // between levels, at the end of the completed road.
+                    .offset(y: -(sample.nodeSize / 2 + 22) * nodeNearness)
             }
         }
         .levelMapProgress(toNext: 1 - metresLeft / Self.legLength)
+    }
+
+    /// 1 while the avatar stands at a level, falling to 0 a short way along the road.
+    private var nodeNearness: Double {
+        let progress = 1 - metresLeft / Self.legLength
+        return max(0, 1 - min(progress, 1 - progress) / 0.15)
     }
 
     @ViewBuilder

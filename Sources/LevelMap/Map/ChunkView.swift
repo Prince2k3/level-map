@@ -44,7 +44,9 @@ struct ChunkView<Data: LevelMapDataSource, Node: View>: View {
     /// Animates the node states when a level unlocks.
     let unlockAnimation: Animation?
     let rotorNamespace: Namespace.ID
-    let node: (Data.Level, Int, LevelState) -> Node
+    let node: (Data.Level, Int, LevelState, LevelPlacement) -> Node
+    /// Shrinks nodes while the map is zoomed in on the avatar, so they keep their size.
+    var markerScale: CGFloat = 1
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -61,14 +63,15 @@ struct ChunkView<Data: LevelMapDataSource, Node: View>: View {
             ForEach(chunk.levels, id: \.self) { index in
                 if let sample = layout.localSample(ofLevel: index, in: chunk) {
                     let state = LevelState(level: index, current: current)
-                    node(data.level(at: index), index, state)
+                    node(data.level(at: index), index, state,
+                         LevelPlacement(sample: sample, crossSize: frame.crossSize, axis: frame.axis, mirrored: mirrored))
                         .animation(unlockAnimation, value: state)
                         .accessibilityElement(children: .combine)
                         .accessibilityValue(state.accessibilityDescription)
                         .accessibilitySortPriority(-Double(index))
                         .modifier(RotorEntry(isCurrent: state == .current, id: MapItemID.level(index),
                                              namespace: rotorNamespace))
-                        .scaleEffect(x: mirrorX, y: mirrorY)
+                        .scaleEffect(x: mirrorX * markerScale, y: mirrorY * markerScale)
                         .id(MapItemID.level(index))
                         .position(frame.point(sample.position))
                 }
@@ -127,7 +130,9 @@ struct ChunkGround: View {
                 if let outline = style.outline, style.outlineWidth > 0 {
                     Path { $0.addLines(piece.points.map(frame.point)) }
                         .stroke(outline, style: StrokeStyle(lineWidth: style.width + 2 * style.outlineWidth,
-                                                            lineCap: .butt, lineJoin: .round))
+                                                            lineCap: style.lineCap, lineJoin: .round,
+                                                            dash: style.dash.isEmpty ? [] : style.dash.map { $0 + 2 * style.outlineWidth },
+                                                            dashPhase: piece.distances.lowerBound))
                 }
             }
     }
@@ -150,7 +155,10 @@ struct ChunkRoad: View {
                 let piece = scene.road[index]
                 let style = plan.theme(forChapter: piece.chapter).road
                 let path = Path { $0.addLines(piece.points.map(frame.point)) }
-                let stroke = StrokeStyle(lineWidth: style.width, lineCap: .butt, lineJoin: .round)
+                let stroke = StrokeStyle(lineWidth: style.width, lineCap: style.lineCap, lineJoin: .round,
+                                         dash: style.dash, dashPhase: piece.distances.lowerBound)
+                // The whole remaining road is drawn under the completed part, so dashes don't
+                // crawl as the completed part grows over them.
                 Group {
                     if let shader = style.shader {
                         path.stroke(shader, style: stroke)
@@ -159,7 +167,10 @@ struct ChunkRoad: View {
                     }
                 }
                 path.trim(from: 0, to: piece.completedFraction(upTo: completed))
-                    .stroke(style.completedColor, style: stroke)
+                    .stroke(style.completedColor,
+                            style: StrokeStyle(lineWidth: style.completedWidth ?? style.width,
+                                               lineCap: style.lineCap, lineJoin: .round))
+                    .shadow(color: style.completedGlow?.color ?? .clear, radius: style.completedGlow?.radius ?? 0)
                 if let line = style.centerLine {
                     path.stroke(line.color, style: StrokeStyle(
                         lineWidth: line.width, lineCap: .butt, lineJoin: .round,

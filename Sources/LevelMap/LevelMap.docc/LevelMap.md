@@ -38,6 +38,12 @@ more than level 5.
 - ``LevelState``
 - ``SwiftUICore/View/levelMapProgress(toNext:)``
 
+### Layers, placement and the camera
+
+- <doc:LayersAndCamera>
+- ``LevelMapGeometry``
+- ``LevelPlacement``
+
 ### Routes
 
 - <doc:DesigningRoutes>

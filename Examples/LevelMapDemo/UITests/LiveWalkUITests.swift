@@ -212,9 +212,10 @@ final class LiveWalkUITests: XCTestCase {
         let second = try stopAt(metres: 45)
 
         // Each stop is sampled in the other's screenshot: under the avatar itself the colours meet.
-        XCTAssertEqual(try road(at: second.avatar, in: first.screenshot), .notCompleted,
-                       "Ahead of the avatar at the first stop")
-        XCTAssertEqual(try road(at: first.avatar, in: second.screenshot), .completed,
+        // The map glides with the walk, so each point is moved into the other screenshot's scroll.
+        XCTAssertEqual(try road(at: second.avatar - second.reference + first.reference, in: first.screenshot),
+                       .notCompleted, "Ahead of the avatar at the first stop")
+        XCTAssertEqual(try road(at: first.avatar - first.reference + second.reference, in: second.screenshot), .completed,
                        "The road completed so far stays completed")
     }
 }
@@ -235,18 +236,21 @@ extension LiveWalkUITests {
     private func assertWalksTowardsNextLevel(from: String, to: String, alreadyWalking: Bool = false,
                                              ticks: Int = 4, file: StaticString = #filePath, line: UInt = #line) throws {
         if !alreadyWalking { app.buttons["Walk"].tap() }
-        let start = center(from), end = center(to)
-        let leg = start.distance(to: end)
-        var previous = try XCTUnwrap(waitForAvatar(), "No avatar", file: file, line: line)
+        // The map glides along with the walk, so positions are measured from `from`, in map space.
+        let leg = center(from).distance(to: center(to))
+        let end = center(to) - center(from)
+        var previous = try XCTUnwrap(waitForAvatar(), "No avatar", file: file, line: line) - center(from)
         var previousMetres = metres() ?? 120
+        var previousFrom = center(from)
 
         for tick in 0..<ticks {
             pause(0.5)
-            let avatar = try XCTUnwrap(avatarPosition(), file: file, line: line)
+            let from0 = center(from)
+            let avatar = try XCTUnwrap(avatarPosition(), file: file, line: line) - from0
             let metres = metres() ?? 120
             XCTAssertLessThanOrEqual(metres, previousMetres, "Distance left never goes up", file: file, line: line)
-            XCTAssertEqual(center(from).distance(to: start), 0, accuracy: 1,
-                           "The map doesn't scroll while walking (tick \(tick))", file: file, line: line)
+            XCTAssertLessThan(from0.distance(to: previousFrom), leg / 2,
+                              "The map glides rather than jumps (tick \(tick))", file: file, line: line)
             // Slow queries can let more than one walk step land in a tick, so allow for the metres
             // actually walked since the last sample, plus a quarter leg.
             let walked = leg * CGFloat(previousMetres - metres) / 120
@@ -254,18 +258,21 @@ extension LiveWalkUITests {
                               "Each step is small; no jumps (tick \(tick))", file: file, line: line)
             XCTAssertLessThanOrEqual(avatar.distance(to: end), previous.distance(to: end) + 1.5,
                                      "Gets closer to \(to) (tick \(tick))", file: file, line: line)
-            XCTAssertGreaterThanOrEqual(avatar.distance(to: start), previous.distance(to: start) - 1.5,
+            XCTAssertGreaterThanOrEqual(avatar.distance(to: .zero), previous.distance(to: .zero) - 1.5,
                                         "Gets further from \(from) (tick \(tick))", file: file, line: line)
             previous = avatar
             previousMetres = metres
+            previousFrom = from0
         }
-        XCTAssertGreaterThan(previous.distance(to: start), 10, "The avatar left \(from)", file: file, line: line)
+        XCTAssertGreaterThan(previous.distance(to: .zero), 10, "The avatar left \(from)", file: file, line: line)
         XCTAssertGreaterThan(previous.distance(to: end), 5, "…but hasn't reached \(to)", file: file, line: line)
         app.buttons["Stop"].tap()
     }
 
     private struct Stop {
         let avatar: CGPoint
+        /// Where level 5,000 was, to line up screenshots taken at different scroll positions.
+        let reference: CGPoint
         let screenshot: XCUIScreenshot
     }
 
@@ -273,7 +280,7 @@ extension LiveWalkUITests {
         waitUntil { (self.metres() ?? 120) <= target }
         app.buttons["Stop"].tap()
         pause(1) // The last step finishes animating.
-        return Stop(avatar: try XCTUnwrap(avatarPosition()), screenshot: app.screenshot())
+        return Stop(avatar: try XCTUnwrap(avatarPosition()), reference: center("5,000"), screenshot: app.screenshot())
     }
 
     private enum RoadColor: Equatable { case completed, notCompleted, other(String) }
@@ -365,4 +372,6 @@ extension LiveWalkUITests {
 
 private extension CGPoint {
     func distance(to other: CGPoint) -> CGFloat { hypot(x - other.x, y - other.y) }
+    static func + (a: CGPoint, b: CGPoint) -> CGPoint { CGPoint(x: a.x + b.x, y: a.y + b.y) }
+    static func - (a: CGPoint, b: CGPoint) -> CGPoint { CGPoint(x: a.x - b.x, y: a.y - b.y) }
 }

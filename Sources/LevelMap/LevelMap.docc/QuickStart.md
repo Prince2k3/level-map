@@ -9,7 +9,7 @@ In Xcode choose **File › Add Package Dependencies…** and enter the repositor
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/<you>/level-map.git", from: "0.1.0"),
+    .package(url: "https://github.com/<you>/level-map.git", from: "0.2.0"),
 ],
 targets: [
     .target(name: "MyGame", dependencies: [
@@ -155,3 +155,4 @@ To find where the avatar is on the road yourself, use
 - <doc:DesigningRoutes>: build a road from segments, or design one by dragging it on screen.
 - <doc:ThemesAndDecorations>: ground, road and scenery, and a new look every chapter.
 - <doc:EndlessMapsAndPaging>: maps with thousands of levels, or no end at all.
+- <doc:LayersAndCamera>: draw your own layers, place labels, and follow the player as they walk.

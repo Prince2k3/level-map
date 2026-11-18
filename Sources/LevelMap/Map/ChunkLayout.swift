@@ -112,6 +112,39 @@ struct ChunkLayout: Sendable {
         return (chunk.index, (viewport / 2 - sample.position.y) / difference)
     }
 
+    /// Where to scroll so the road at `distance` lands `target` points from the start of a viewport
+    /// `viewport` points long, in the scroll view's own (unmirrored) coordinates. Scrolls to the
+    /// chunk the point is in, as ``scrollAnchor(forLevel:viewport:)`` does; `level` is a hint for
+    /// finding it.
+    func scrollAnchor(forDistance distance: CGFloat, nearLevel level: Int, target: CGFloat,
+                      viewport: CGFloat) -> (chunk: Int, anchor: CGFloat) {
+        let y = road.sample(atDistance: distance).position.y
+        var chunk = chunk(chunkIndex(containing: level))
+        while y < chunk.origin, chunk.index > 0 {
+            chunk = self.chunk(chunk.index - 1)
+        }
+        while y > chunk.origin + chunk.extent, chunkCount.map({ chunk.index < $0 - 1 }) ?? true {
+            chunk = self.chunk(chunk.index + 1)
+        }
+        let difference = viewport - chunk.extent
+        guard abs(difference) > 0.5 else { return (chunk.index, 0.5) }
+        return (chunk.index, (target - (y - chunk.origin)) / difference)
+    }
+
+    /// How far from the start of the scroll content a route `y` is. Chunks tile the content
+    /// end to end, starting at the first chunk's origin.
+    func contentPosition(ofRouteY y: CGFloat) -> CGFloat {
+        y + leadingMargin
+    }
+
+    /// The length of the scroll content, or `nil` for an endless map.
+    var contentExtent: CGFloat? {
+        guard let count = chunkCount else { return nil }
+        guard count > 0 else { return 0 }
+        let last = chunk(count - 1)
+        return last.origin + last.extent + leadingMargin
+    }
+
     /// The chunk's stretch of road as a polyline relative to the start of the chunk.
     /// Slices overlap their neighbours slightly so no seam shows between chunks.
     func roadPoints(in chunk: Chunk, step: CGFloat = 3, overlap: CGFloat = 1) -> [CGPoint] {

@@ -11,6 +11,42 @@ extension EnvironmentValues {
     @Entry var levelMapAvatar: LevelMapAvatar? = nil
     @Entry var levelMapProgress: Double = 0
     @Entry var levelMapOverlay: LevelMapOverlay? = nil
+    @Entry var levelMapLayers: [LevelMapLayer] = []
+    @Entry var levelMapFollow: LevelMapFollow? = nil
+    @Entry var levelMapAvatarVisibility: LevelMapAvatarVisibility? = nil
+    @Entry var levelMapRecenterTrigger: LevelMapRecenterTrigger? = nil
+    @Entry var levelMapFocusOffset: CGFloat = 0
+}
+
+private struct LevelMapZoomKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 1
+}
+
+extension EnvironmentValues {
+    /// How far ``SwiftUICore/View/levelMapFollowsAvatar(_:zoom:anchor:scalesMarkers:)`` has
+    /// magnified the map: 1 when it isn't following. Read it in level nodes and avatars that
+    /// scale themselves rather than letting the map do it.
+    public internal(set) var levelMapZoom: CGFloat {
+        get { self[LevelMapZoomKey.self] }
+        set { self[LevelMapZoomKey.self] = newValue }
+    }
+}
+
+/// Set with ``SwiftUICore/View/levelMapFollowsAvatar(_:zoom:anchor:scalesMarkers:)``.
+struct LevelMapFollow: Sendable, Equatable {
+    let zoom: CGFloat
+    let anchor: UnitPoint
+    let scalesMarkers: Bool
+}
+
+/// `@MainActor` closures are not `Sendable`, but environment values are only read on the main actor.
+struct LevelMapAvatarVisibility: @unchecked Sendable {
+    let action: @MainActor (Bool) -> Void
+}
+
+/// `AnyHashable` is not `Sendable`, but environment values are only read on the main actor.
+struct LevelMapRecenterTrigger: @unchecked Sendable, Equatable {
+    let value: AnyHashable
 }
 
 extension View {
@@ -99,5 +135,67 @@ extension View {
     /// The map doesn't scroll as progress changes; it scrolls when `current` does.
     public func levelMapProgress(toNext progress: Double) -> some View {
         environment(\.levelMapProgress, progress)
+    }
+
+    /// Zooms in on the avatar and keeps it at `anchor` while `isOn` is true, for showing a walk
+    /// as it happens. Scrolling is switched off meanwhile; when following stops, the map zooms
+    /// back out and scrolls to rest on the avatar.
+    ///
+    /// ```swift
+    /// LevelMap(stops, route: .serpentine(), current: arrived) { ... }
+    ///     .levelMapAvatar { Walker() }
+    ///     .levelMapProgress(toNext: walked)
+    ///     .levelMapFollowsAvatar(session.isLive)
+    /// ```
+    /// - Parameters:
+    ///   - isOn: Whether to follow the avatar.
+    ///   - zoom: How far to magnify the map while following.
+    ///   - anchor: Where the avatar is held, as a fraction of the map's size.
+    ///   - scalesMarkers: Shrinks level nodes and the avatar by the zoom, so they keep their size
+    ///     while the ground around them grows. Turn it off to scale them yourself with
+    ///     ``SwiftUICore/EnvironmentValues/levelMapZoom``.
+    ///
+    /// Following is off while Reduce Motion is on: the map still keeps the avatar in view, but
+    /// without the zoom.
+    public func levelMapFollowsAvatar(_ isOn: Bool = true, zoom: CGFloat = 2.2,
+                                      anchor: UnitPoint = UnitPoint(x: 0.5, y: 0.45),
+                                      scalesMarkers: Bool = true) -> some View {
+        environment(\.levelMapFollow, isOn ? LevelMapFollow(zoom: max(zoom, 1), anchor: anchor,
+                                                            scalesMarkers: scalesMarkers) : nil)
+    }
+
+    /// Calls `action` when the avatar scrolls out of view (`false`) or back into it (`true`), and
+    /// once when the map appears. Use it to offer a way back to the player:
+    ///
+    /// ```swift
+    /// @State private var avatarVisible = true
+    /// @State private var recenter = 0
+    ///
+    /// LevelMap(...) { ... }
+    ///     .levelMapAvatar { Walker() }
+    ///     .onLevelMapAvatarVisibilityChange { avatarVisible = $0 }
+    ///     .levelMapRecenter(on: recenter)
+    ///     .overlay(alignment: .bottomTrailing) {
+    ///         if !avatarVisible {
+    ///             Button("Back to you", systemImage: "location.fill") { recenter += 1 }
+    ///         }
+    ///     }
+    /// ```
+    /// The avatar counts as out of view when it is within 40 points of the map's ends.
+    public func onLevelMapAvatarVisibilityChange(_ action: @escaping @MainActor (_ isVisible: Bool) -> Void) -> some View {
+        environment(\.levelMapAvatarVisibility, LevelMapAvatarVisibility(action: action))
+    }
+
+    /// Scrolls the map back to the avatar, where it stands between levels, whenever `trigger`
+    /// changes.
+    public func levelMapRecenter(on trigger: some Hashable) -> some View {
+        environment(\.levelMapRecenterTrigger, LevelMapRecenterTrigger(value: AnyHashable(trigger)))
+    }
+
+    /// Moves where the current level rests when the map scrolls to it, in points towards the top
+    /// (or leading edge) of the map. Use it to keep the player clear of cards floating over the
+    /// bottom of the map. Defaults to 0, the middle.
+    public func levelMapFocusOffset(_ offset: CGFloat) -> some View {
+        environment(\.levelMapFocusOffset, offset)
     }
 }

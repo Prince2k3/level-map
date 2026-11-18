@@ -62,6 +62,27 @@ public struct RoadStyle: Sendable {
     public var centerLine: CenterLine?
     /// Fills the remaining road instead of ``color``, for example a Metal shader made with `ShaderLibrary`.
     public var shader: Shader?
+    /// How the ends of the road, and of its dashes, are drawn. `.round` with a ``dash`` of
+    /// `[0, gap]` draws a dotted road.
+    public var lineCap: CGLineCap
+    /// Dash and gap lengths for the remaining road, in points. Empty for a solid road. The
+    /// completed road is always solid, and the dashes stay put as it grows over them.
+    public var dash: [CGFloat]
+    /// The width of the completed road, or `nil` to match ``width``.
+    public var completedWidth: CGFloat?
+    /// A soft glow around the completed road, or `nil` for none.
+    public var completedGlow: Glow?
+
+    /// A soft glow drawn around a stroke.
+    public struct Glow: Sendable {
+        public var color: Color
+        public var radius: CGFloat
+
+        public init(color: Color, radius: CGFloat = 8) {
+            self.color = color
+            self.radius = max(radius, 0)
+        }
+    }
 
     /// A line painted down the middle of the road.
     public struct CenterLine: Sendable {
@@ -84,7 +105,11 @@ public struct RoadStyle: Sendable {
         outline: Color? = nil,
         outlineWidth: CGFloat = 3,
         centerLine: CenterLine? = nil,
-        shader: Shader? = nil
+        shader: Shader? = nil,
+        lineCap: CGLineCap = .butt,
+        dash: [CGFloat] = [],
+        completedWidth: CGFloat? = nil,
+        completedGlow: Glow? = nil
     ) {
         self.width = max(width, 0)
         self.color = color
@@ -93,6 +118,22 @@ public struct RoadStyle: Sendable {
         self.outlineWidth = max(outlineWidth, 0)
         self.centerLine = centerLine
         self.shader = shader
+        self.lineCap = lineCap
+        self.dash = dash.map { max($0, 0) }
+        self.completedWidth = completedWidth.map { max($0, 0) }
+        self.completedGlow = completedGlow
+    }
+
+    /// A dotted road that lights up solid, with a glow, as the player completes it.
+    ///
+    /// ```swift
+    /// .levelMapTheme(LevelMapTheme(road: .dotted(.white.opacity(0.5), completed: .green)))
+    /// ```
+    public static func dotted(_ color: Color, completed completedColor: Color, dotSize: CGFloat = 7,
+                              gap: CGFloat = 16, completedWidth: CGFloat = 6, glow: CGFloat = 8) -> RoadStyle {
+        RoadStyle(width: dotSize, color: color, completedColor: completedColor, lineCap: .round,
+                  dash: [0, gap], completedWidth: completedWidth,
+                  completedGlow: glow > 0 ? Glow(color: completedColor.opacity(0.8), radius: glow) : nil)
     }
 }
 
