@@ -18,6 +18,18 @@ struct MapGeometryTests {
                                 originAlong: first.origin, mirrored: mirrored, zoom: 1)
     }
 
+    @Test func extremeNegativeQueriesClampBeforeIntegerConversion() throws {
+        let map = geometry()
+        let start = layout.road.sample(atDistance: 0).position
+        let point = try #require(map.point(atLevel: -Double.greatestFiniteMagnitude))
+        #expect(abs(point.x - start.x) < 0.001)
+        #expect(abs(point.y - (start.y - layout.chunk(0).origin)) < 0.001)
+        #expect(map.placement(ofLevel: -Double.greatestFiniteMagnitude) != nil)
+        #expect(!map.roadPath(from: -Double.greatestFiniteMagnitude, to: 2).isEmpty)
+        #expect(map.point(atLevel: -.infinity) == nil)
+        #expect(map.point(atLevel: .nan) == nil)
+    }
+
     @Test func pointsLandOnTheLevels() throws {
         let map = geometry()
         for level in [0, 5, 13] {

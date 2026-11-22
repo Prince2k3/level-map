@@ -35,7 +35,7 @@ struct AvatarPlacement: ViewModifier, Animatable {
 extension LevelMap {
     /// How the avatar gets from one level to the next: a walk along the road for short hops,
     /// a jump for long ones or when Reduce Motion is on.
-    static func avatarAnimation(from old: Int, to new: Int, reduceMotion: Bool) -> Animation? {
+    nonisolated static func avatarAnimation(from old: Int, to new: Int, reduceMotion: Bool) -> Animation? {
         let hops = abs(new - old)
         guard !reduceMotion, hops > 0, hops <= 3 else { return nil }
         return .easeInOut(duration: 0.35 + 0.3 * Double(hops))

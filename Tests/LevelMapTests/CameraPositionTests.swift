@@ -62,13 +62,13 @@ struct CameraPositionTests {
         }
     }
 
-    @Test @MainActor func boundAndLegacyInitializersCompileTogether() {
+    @Test @MainActor func boundAndAutomaticCameraInitializersCompile() {
         let binding = Binding.constant(LevelMapCameraPosition.automatic)
-        _ = LevelMap(0..<100, route: .straight, current: 4, position: binding) { _, _, _ in EmptyView() }
-        _ = LevelMap(0..<100, route: .straight, position: binding) { _, _, _, _ in EmptyView() }
-        _ = LevelMap(["a", "b"][...], id: \.self, route: .straight, position: binding) { _, _, _ in EmptyView() }
-        _ = LevelMap(["a", "b"][...], id: \.self, route: .straight, position: binding) { _, _, _, _ in EmptyView() }
-        _ = LevelMap(EndlessLevels(), route: .straight) { _, _, _ in EmptyView() }
-            .levelMapFollowsAvatar().levelMapRecenter(on: 1).levelMapFocusOffset(20)
+        _ = LevelMap(0..<100, route: .straight, current: 4, position: binding) { _ in EmptyView() }
+        _ = LevelMap(0..<100, route: .straight, position: binding) { _ in EmptyView() }
+        _ = LevelMap(["a", "b"][...], id: \.self, route: .straight, position: binding) { _ in EmptyView() }
+        _ = LevelMap(["a", "b"][...], id: \.self, route: .straight, position: binding) { _ in EmptyView() }
+        _ = LevelMap(EndlessLevels(), route: .straight) { _ in EmptyView() }
+            .levelMapRecenterButton()
     }
 }

@@ -66,7 +66,12 @@ struct TrailMap: View {
         }
         .onAppear { dayStart = current }
         // Going back (the demo's "Go to 1") starts a new day.
-        .onChange(of: current) { old, new in if new < old { dayStart = new } }
+        .onChange(of: current) { old, new in
+            if new < old {
+                dayStart = new
+                position = walking ? .avatar() : .automatic
+            }
+        }
     }
 }
 

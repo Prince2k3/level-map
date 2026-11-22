@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    @Entry var levelSpacing: CGFloat = 110
+    @Entry var levelMapSpacing: CGFloat = 110
     @Entry var levelMapEdgeInset: CGFloat? = nil
     @Entry var levelMapChunkSize: Int = 10
     @Entry var levelMapTheme: LevelMapTheme = .plain
@@ -12,10 +12,7 @@ extension EnvironmentValues {
     @Entry var levelMapProgress: Double = 0
     @Entry var levelMapOverlay: LevelMapOverlay? = nil
     @Entry var levelMapLayers: [LevelMapLayer] = []
-    @Entry var levelMapFollow: LevelMapFollow? = nil
     @Entry var levelMapAvatarVisibility: LevelMapAvatarVisibility? = nil
-    @Entry var levelMapRecenterTrigger: LevelMapRecenterTrigger? = nil
-    @Entry var levelMapFocusOffset: CGFloat = 0
     @Entry var levelMapContentMargins = EdgeInsets()
     @Entry var levelMapRecenterButton: LevelMapRecenterButton? = nil
     @Entry var levelMapMarks: [LevelMapMarkGroup] = []
@@ -26,8 +23,8 @@ private struct LevelMapZoomKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// How far ``SwiftUICore/View/levelMapFollowsAvatar(_:zoom:anchor:scalesMarkers:)`` has
-    /// magnified the map: 1 when it isn't following. Read it in level nodes and avatars that
+    /// How far the camera's `LevelMapCameraPosition.avatar` framing has magnified the map:
+    /// 1 when it isn't following. Read it in level nodes and avatars that
     /// scale themselves rather than letting the map do it.
     public internal(set) var levelMapZoom: CGFloat {
         get { self[LevelMapZoomKey.self] }
@@ -35,28 +32,15 @@ extension EnvironmentValues {
     }
 }
 
-/// Set with ``SwiftUICore/View/levelMapFollowsAvatar(_:zoom:anchor:scalesMarkers:)``.
-struct LevelMapFollow: Sendable, Equatable {
-    let zoom: CGFloat
-    let anchor: UnitPoint
-    let scalesMarkers: Bool
-}
-
-/// `@MainActor` closures are not `Sendable`, but environment values are only read on the main actor.
-struct LevelMapAvatarVisibility: @unchecked Sendable {
+/// A main-actor callback carried through the environment.
+struct LevelMapAvatarVisibility: Sendable {
     let action: @MainActor (Bool) -> Void
-}
-
-/// `AnyHashable` is not `Sendable`, but environment values are only read on the main actor.
-struct LevelMapRecenterTrigger: @unchecked Sendable, Equatable {
-    let value: AnyHashable
 }
 
 /// Set with ``SwiftUICore/View/levelMapRecenterButton(alignment:_:)``.
 ///
-/// `AnyView` and `@MainActor` closures are not `Sendable`, but environment values are only read
-/// on the main actor.
-struct LevelMapRecenterButton: @unchecked Sendable {
+/// The factory is main-actor isolated, including the views it constructs.
+struct LevelMapRecenterButton: Sendable {
     let alignment: Alignment
     let make: @MainActor (_ recenter: @escaping @MainActor () -> Void) -> AnyView
 }
@@ -64,12 +48,7 @@ struct LevelMapRecenterButton: @unchecked Sendable {
 extension View {
     /// How far the road advances along the scroll axis per level, in points. Defaults to 110.
     public func levelMapSpacing(_ spacing: CGFloat) -> some View {
-        environment(\.levelSpacing, spacing)
-    }
-
-    /// The original spelling of `levelMapSpacing(_:)`, kept for source compatibility.
-    public func levelSpacing(_ spacing: CGFloat) -> some View {
-        levelMapSpacing(spacing)
+        environment(\.levelMapSpacing, spacing)
     }
 
     /// The least room left between a level and the map's edges, in points, so nodes (and an
@@ -156,33 +135,6 @@ extension View {
         environment(\.levelMapProgress, progress)
     }
 
-    /// Zooms in on the avatar and keeps it at `anchor` while `isOn` is true, for showing a walk
-    /// as it happens. Scrolling is switched off meanwhile; when following stops, the map zooms
-    /// back out and scrolls to rest on the avatar.
-    ///
-    /// ```swift
-    /// LevelMap(stops, route: .serpentine(), current: arrived) { ... }
-    ///     .levelMapAvatar { Walker() }
-    ///     .levelMapProgress(toNext: walked)
-    ///     .levelMapFollowsAvatar(session.isLive)
-    /// ```
-    /// - Parameters:
-    ///   - isOn: Whether to follow the avatar.
-    ///   - zoom: How far to magnify the map while following.
-    ///   - anchor: Where the avatar is held, as a fraction of the map's size.
-    ///   - scalesMarkers: Shrinks level nodes and the avatar by the zoom, so they keep their size
-    ///     while the ground around them grows. Turn it off to scale them yourself with
-    ///     ``SwiftUICore/EnvironmentValues/levelMapZoom``.
-    ///
-    /// Following is off while Reduce Motion is on: the map still keeps the avatar in view, but
-    /// without the zoom.
-    public func levelMapFollowsAvatar(_ isOn: Bool = true, zoom: CGFloat = 2.2,
-                                      anchor: UnitPoint = UnitPoint(x: 0.5, y: 0.45),
-                                      scalesMarkers: Bool = true) -> some View {
-        environment(\.levelMapFollow, isOn ? LevelMapFollow(zoom: max(zoom, 1), anchor: anchor,
-                                                            scalesMarkers: scalesMarkers) : nil)
-    }
-
     /// Calls `action` when the avatar scrolls out of view (`false`) or back into it (`true`), and
     /// once when the map appears.
     ///
@@ -193,19 +145,6 @@ extension View {
     /// the ``levelMapContentMargins(_:_:)``.
     public func onLevelMapAvatarVisibilityChange(_ action: @escaping @MainActor (_ isVisible: Bool) -> Void) -> some View {
         environment(\.levelMapAvatarVisibility, LevelMapAvatarVisibility(action: action))
-    }
-
-    /// Scrolls the map back to the avatar, where it stands between levels, whenever `trigger`
-    /// changes.
-    public func levelMapRecenter(on trigger: some Hashable) -> some View {
-        environment(\.levelMapRecenterTrigger, LevelMapRecenterTrigger(value: AnyHashable(trigger)))
-    }
-
-    /// Moves where the current level rests when the map scrolls to it, in points towards the top
-    /// (or leading edge) of the map. Defaults to 0, the middle of the part of the map that
-    /// ``levelMapContentMargins(_:_:)`` leaves uncovered.
-    public func levelMapFocusOffset(_ offset: CGFloat) -> some View {
-        environment(\.levelMapFocusOffset, offset)
     }
 
     /// Tells the map how much of it is covered by views floating over its edges, such as a panel
@@ -222,7 +161,7 @@ extension View {
     /// The map still draws under the margins, and changing them doesn't scroll it, so a panel can
     /// grow and shrink without the map moving.
     ///
-    /// ``levelMapFollowsAvatar(_:zoom:anchor:scalesMarkers:)`` holds the avatar at a fraction of
+    /// The camera's `.avatar(zoom:anchor:scalesMarkers:)` framing holds the avatar at a fraction of
     /// the whole map, ignoring the margins for the same reason. Pick an anchor clear of the panel.
     ///
     /// Call it again to set other edges. For overlapping edges, the modifier closest to the map

@@ -21,7 +21,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     private let node: (LevelMapNodeContext<Data.Level>) -> Node
 
     @Environment(\.layoutDirection) private var layoutDirection
-    @Environment(\.levelSpacing) private var spacing
+    @Environment(\.levelMapSpacing) private var spacing
     @Environment(\.levelMapEdgeInset) private var edgeInset
     @Environment(\.levelMapChunkSize) private var chunkSize
     @Environment(\.levelMapTheme) private var theme
@@ -32,10 +32,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     @Environment(\.levelMapProgress) private var progress
     @Environment(\.levelMapOverlay) private var overlay
     @Environment(\.levelMapLayers) private var layers
-    @Environment(\.levelMapFollow) private var legacyFollow
     @Environment(\.levelMapAvatarVisibility) private var avatarVisibility
-    @Environment(\.levelMapRecenterTrigger) private var recenterTrigger
-    @Environment(\.levelMapFocusOffset) private var focusOffset
     @Environment(\.levelMapContentMargins) private var contentMargins
     @Environment(\.levelMapRecenterButton) private var recenterButton
     @Environment(\.levelMapMarks) private var marks
@@ -51,6 +48,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     @State private var loadedChunks = 0
     /// How the map is magnified while it follows the avatar.
     @State private var camera = FollowCamera()
+    @State private var automaticPosition: LevelMapCameraPosition = .automatic
     @State private var animationContext = MapAnimationContext()
     /// When progress last changed, so the follow camera can glide over the time between updates.
     @State private var progressClock = ProgressClock()
@@ -63,64 +61,6 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     @State private var avatarInView = true
     /// Chunks added at a time when an endless map nears its end.
     private let pageSize = 6
-
-    /// - Parameters:
-    ///   - data: The levels to show. Arrays and `Range<Int>` work directly; ``EndlessLevels`` never ends.
-    ///   - route: The road the levels sit on. A finite route caps how many levels are shown.
-    ///   - axis: The scroll direction.
-    ///   - startsAtEnd: Puts level 0 at the bottom (or trailing edge) so the player climbs the map.
-    ///   - current: The player's current level. The map opens on it and scrolls to it when it changes.
-    ///   - position: Optional two-way camera state. When supplied, overrides the legacy follow modifier.
-    ///   - node: The view for each level.
-    public init(
-        _ data: Data,
-        route: LevelRoute,
-        axis: Axis = .vertical,
-        startsAtEnd: Bool = false,
-        current: Int = 0,
-        position: Binding<LevelMapCameraPosition>? = nil,
-        @ViewBuilder node: @escaping (_ level: Data.Level, _ index: Int, _ state: LevelState) -> Node
-    ) {
-        self.init(data, route: route, axis: axis, startsAtEnd: startsAtEnd, current: current,
-                  position: position, content: { context in
-            node(context.level, context.index, context.state)
-        })
-    }
-
-    /// Creates a map whose nodes are also told where they sit, so they can put labels on the
-    /// roomier side of the road or turn with it.
-    ///
-    /// ```swift
-    /// LevelMap(stops, route: .serpentine(), current: arrived) { stop, index, state, placement in
-    ///     StopPin(stop: stop, state: state)
-    ///         .overlay(alignment: placement.side == .trailing ? .leading : .trailing) {
-    ///             Text(stop.name).fixedSize().offset(x: placement.side == .trailing ? -60 : 60)
-    ///         }
-    /// }
-    /// ```
-    /// - Parameters:
-    ///   - data: The levels to show. Arrays and `Range<Int>` work directly; ``EndlessLevels`` never ends.
-    ///   - route: The road the levels sit on. A finite route caps how many levels are shown.
-    ///   - axis: The scroll direction.
-    ///   - startsAtEnd: Puts level 0 at the bottom (or trailing edge) so the player climbs the map.
-    ///   - current: The player's current level. The map opens on it and scrolls to it when it changes.
-    ///   - position: Optional two-way camera state. Manual scrolling writes back `positionedByUser`.
-    ///   - placedNode: The view for each level, given where the level sits across the map.
-    public init(
-        _ data: Data,
-        route: LevelRoute,
-        axis: Axis = .vertical,
-        startsAtEnd: Bool = false,
-        current: Int = 0,
-        position: Binding<LevelMapCameraPosition>? = nil,
-        @ViewBuilder placedNode: @escaping (_ level: Data.Level, _ index: Int, _ state: LevelState,
-                                            _ placement: LevelPlacement) -> Node
-    ) {
-        self.init(data, route: route, axis: axis, startsAtEnd: startsAtEnd, current: current,
-                  position: position, content: { context in
-            placedNode(context.level, context.index, context.state, context.placement)
-        })
-    }
 
     /// Creates a map whose node content receives its model, road index, state and placement
     /// together in a `LevelMapNodeContext`.
@@ -154,12 +94,9 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         self.node = content
     }
 
-    private var follow: LevelMapFollow? {
-        if let position { return position.wrappedValue.followConfiguration }
-        return legacyFollow
-    }
-
-    private var tracksPlayer: Bool { position?.wrappedValue.tracksPlayer ?? true }
+    private var cameraPosition: Binding<LevelMapCameraPosition> { position ?? $automaticPosition }
+    private var follow: AvatarFollowConfiguration? { cameraPosition.wrappedValue.followConfiguration }
+    private var tracksPlayer: Bool { cameraPosition.wrappedValue.tracksPlayer }
 
     public var body: some View {
         GeometryReader { proxy in
@@ -301,7 +238,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
             }
             .scrollDisabled(follow != nil)
             .modifier(CameraUserInteraction(action: {
-                LevelMapCameraPosition.userDidScroll(position, isFollowing: follow != nil)
+                LevelMapCameraPosition.userDidScroll(cameraPosition, isFollowing: follow != nil)
             }, accessibilityScroll: { edge in
                 pageForAccessibility(edge, reader: reader, chunkCount: chunkCount, viewport: viewport)
             }))
@@ -325,8 +262,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
             .overlay(alignment: recenterButton?.alignment ?? .bottomTrailing) {
                 if let recenterButton, !avatarInView, follow == nil {
                     recenterButton.make {
-                        if let position { position.wrappedValue = .automatic }
-                        else { scrollToAvatar(reader, layout: layout, viewport: viewport, target: target, animated: !reduceMotion) }
+                        recenterCamera(reader, layout: layout, size: size, animated: !reduceMotion)
                     }
                     .padding(16)
                     .padding(contentMargins)
@@ -339,20 +275,13 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
             .accessibilityRotor("Current level") {
                 AccessibilityRotorEntry("Current level", id: MapItemID.level(target), in: rotorNamespace) {
                     // The node only exists once its chunk is on screen.
-                    if let position { position.wrappedValue = .automatic }
-                    else { scroll(reader, to: target, layout: layout, viewport: viewport, animated: false) }
+                    recenterCamera(reader, layout: layout, size: size, animated: false)
                 }
             }
             .onAppear {
                 avatarLevel = target
                 heldProgress = progress
-                if position != nil {
-                    applyPosition(reader, layout: layout, size: size, animation: nil)
-                } else if follow != nil {
-                    followAvatar(reader, layout: layout, size: size, animation: nil)
-                } else {
-                    scroll(reader, to: target, layout: layout, viewport: viewport, animated: false)
-                }
+                applyPosition(reader, layout: layout, size: size, animation: nil)
             }
             .onChange(of: current) {
                 let level = clampedCurrent(in: layout)
@@ -405,37 +334,14 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                     }
                 }
             }
-            .onChange(of: position?.wrappedValue) {
+            .onChange(of: cameraPosition.wrappedValue) {
                 applyPosition(reader, layout: layout, size: size, animation: reduceMotion ? nil : .smooth(duration: 0.6))
             }
-            .onChange(of: follow) {
-                guard position == nil else { return }
-                if follow != nil {
-                    followAvatar(reader, layout: layout, size: size, animation: reduceMotion ? nil : .smooth(duration: 0.6))
-                } else {
-                    // The zoom and the scroll together decide where the avatar is drawn, so they share
-                    // one animation. On different curves the avatar overshoots its resting place.
-                    let animation: Animation? = reduceMotion ? nil : .smooth(duration: 0.6)
-                    withTransaction(animationContext.resolved(fallback: animation, reduceMotion: reduceMotion)) {
-                        camera = FollowCamera(anchor: camera.anchor)
-                    }
-                    scrollToAvatar(reader, layout: layout, viewport: viewport, target: target, animation: animation)
-                }
-            }
             .onChange(of: size) {
-                if position != nil {
-                    applyPosition(reader, layout: layout, size: size, animation: nil)
-                } else if follow != nil {
-                    followAvatar(reader, layout: layout, size: size, animation: nil)
-                }
+                applyPosition(reader, layout: layout, size: size, animation: nil)
             }
             .onChange(of: layout.levelCount) {
-                if position != nil { applyPosition(reader, layout: layout, size: size, animation: nil) }
-            }
-            .onChange(of: recenterTrigger) {
-                guard follow == nil else { return }
-                if let position { position.wrappedValue = .automatic }
-                else { scrollToAvatar(reader, layout: layout, viewport: viewport, target: target, animated: !reduceMotion) }
+                applyPosition(reader, layout: layout, size: size, animation: nil)
             }
         }
         .transaction { transaction in
@@ -466,7 +372,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         default: return
         }
         let direction: CGFloat = (forward != startsAtEnd) ? 1 : -1
-        LevelMapCameraPosition.userDidScroll(position, isFollowing: false)
+        LevelMapCameraPosition.userDidScroll(cameraPosition, isFollowing: false)
         let move = {
             if let anchor = snapshot.pageAnchor(direction: direction, viewport: viewport) {
                 reader.scrollTo(MapItemID.chunk(snapshot.index),
@@ -482,12 +388,12 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
 
     /// The camera target is also included in endless paging before scrolling to it.
     private func cameraLevel(in layout: ChunkLayout) -> Int {
-        position?.wrappedValue.resolvedLevel(in: layout)?.index ?? 0
+        cameraPosition.wrappedValue.resolvedLevel(in: layout)?.index ?? 0
     }
 
     private func applyPosition(_ reader: ScrollViewProxy, layout: ChunkLayout, size: CGSize,
                                animation: Animation?) {
-        guard let requested = position?.wrappedValue else { return }
+        let requested = cameraPosition.wrappedValue
         let viewport = axis == .vertical ? size.height : size.width
         switch requested.framing {
         case .user:
@@ -507,6 +413,14 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                 scroll(reader, toDistance: target.distance, nearLevel: target.index, layout: layout, viewport: viewport,
                        animation: animation, screenAnchor: axis == .vertical ? anchor.y : anchor.x)
             }
+        }
+    }
+
+    private func recenterCamera(_ reader: ScrollViewProxy, layout: ChunkLayout, size: CGSize, animated: Bool) {
+        if cameraPosition.wrappedValue != .automatic {
+            cameraPosition.wrappedValue = .automatic
+        } else {
+            applyPosition(reader, layout: layout, size: size, animation: animated ? .smooth : nil)
         }
     }
 
@@ -697,20 +611,6 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         withTransaction(animationContext.resolved(fallback: animation, reduceMotion: reduceMotion), move)
     }
 
-    /// Scrolls so the avatar, where it stands between levels, rests where the current level would.
-    private func scrollToAvatar(_ reader: ScrollViewProxy, layout: ChunkLayout, viewport: CGFloat, target: Int,
-                                animated: Bool) {
-        scrollToAvatar(reader, layout: layout, viewport: viewport, target: target, animation: animated ? .smooth : nil)
-    }
-
-    private func scrollToAvatar(_ reader: ScrollViewProxy, layout: ChunkLayout, viewport: CGFloat, target: Int,
-                                animation: Animation?) {
-        let level = avatarLevel ?? target
-        guard let distance = layout.travelledDistance(fromLevel: level, progress: level == target ? progress : heldProgress)
-        else { return }
-        scroll(reader, toDistance: distance, nearLevel: level, layout: layout, viewport: viewport, animation: animation)
-    }
-
     /// Where the completed road ends: at the current level, or past the end once every level is done.
     private func completedDistance(in layout: ChunkLayout) -> CGFloat {
         if let count = layout.levelCount, current >= count { return .infinity }
@@ -735,7 +635,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         return min(max(current, 0), max(count - 1, 0))
     }
 
-    /// Brings a level to rest in one step: the middle of the uncovered map, moved by the focus offset.
+    /// Brings a level to rest in the middle of the uncovered map.
     private func scroll(_ reader: ScrollViewProxy, to level: Int, layout: ChunkLayout,
                         viewport: CGFloat, animated: Bool) {
         guard layout.levelCount != 0, let distance = layout.road.distance(ofLevel: level) else { return }
@@ -749,11 +649,10 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     private func scroll(_ reader: ScrollViewProxy, toDistance distance: CGFloat, nearLevel level: Int,
                         layout: ChunkLayout, viewport: CGFloat, animation: Animation?, screenAnchor: CGFloat? = nil) {
         guard layout.levelCount != 0 else { return }
-        // A positive offset moves the resting point up the screen (or towards the leading edge).
         // The scroll view's own coordinates run the other way on mirrored maps.
         let (start, end) = marginsAlong
         let screenTarget = screenAnchor.map { viewport * $0 }
-            ?? (start + max(viewport - start - end, 0) / 2 - focusOffset)
+            ?? (start + max(viewport - start - end, 0) / 2)
         let target = startsAtEnd ? viewport - screenTarget : screenTarget
         let (chunk, anchor) = layout.scrollAnchor(forDistance: distance, nearLevel: level,
                                                   target: target, viewport: viewport)
@@ -860,50 +759,6 @@ private struct ChunkBoundsKey: PreferenceKey {
 private extension Int {
     /// The id of the chunk at this index, which `scrollTo` targets.
     var chunkID: MapItemID { .chunk(self) }
-}
-
-
-extension LevelMap {
-    /// Creates a map from a random-access collection with explicit stable element identities.
-    /// `current` remains a zero-based road offset, independent of collection indices or IDs.
-    public init<Elements: RandomAccessCollection, ID: Hashable>(
-        _ elements: Elements, id: KeyPath<Elements.Element, ID>, route: LevelRoute,
-        axis: Axis = .vertical, startsAtEnd: Bool = false, current: Int = 0, position: Binding<LevelMapCameraPosition>? = nil,
-        @ViewBuilder node: @escaping (Elements.Element, Int, LevelState) -> Node
-    ) where Data == LevelMapCollection<Elements, ID> {
-        self.init(LevelMapCollection(elements, id: id), route: route, axis: axis,
-                  startsAtEnd: startsAtEnd, current: current, position: position, node: node)
-    }
-
-    /// Creates a map whose collection elements supply their own stable identities.
-    public init<Elements: RandomAccessCollection>(
-        _ elements: Elements, route: LevelRoute, axis: Axis = .vertical,
-        startsAtEnd: Bool = false, current: Int = 0, position: Binding<LevelMapCameraPosition>? = nil,
-        @ViewBuilder node: @escaping (Elements.Element, Int, LevelState) -> Node
-    ) where Elements.Element: Identifiable, Data == LevelMapCollection<Elements, Elements.Element.ID> {
-        self.init(elements, id: \.id, route: route, axis: axis,
-                  startsAtEnd: startsAtEnd, current: current, position: position, node: node)
-    }
-
-    /// Creates placed nodes from a collection with explicit stable identities.
-    public init<Elements: RandomAccessCollection, ID: Hashable>(
-        _ elements: Elements, id: KeyPath<Elements.Element, ID>, route: LevelRoute,
-        axis: Axis = .vertical, startsAtEnd: Bool = false, current: Int = 0, position: Binding<LevelMapCameraPosition>? = nil,
-        @ViewBuilder placedNode: @escaping (Elements.Element, Int, LevelState, LevelPlacement) -> Node
-    ) where Data == LevelMapCollection<Elements, ID> {
-        self.init(LevelMapCollection(elements, id: id), route: route, axis: axis,
-                  startsAtEnd: startsAtEnd, current: current, position: position, placedNode: placedNode)
-    }
-
-    /// Creates placed nodes from identifiable collection elements.
-    public init<Elements: RandomAccessCollection>(
-        _ elements: Elements, route: LevelRoute, axis: Axis = .vertical,
-        startsAtEnd: Bool = false, current: Int = 0, position: Binding<LevelMapCameraPosition>? = nil,
-        @ViewBuilder placedNode: @escaping (Elements.Element, Int, LevelState, LevelPlacement) -> Node
-    ) where Elements.Element: Identifiable, Data == LevelMapCollection<Elements, Elements.Element.ID> {
-        self.init(elements, id: \.id, route: route, axis: axis,
-                  startsAtEnd: startsAtEnd, current: current, position: position, placedNode: placedNode)
-    }
 }
 
 

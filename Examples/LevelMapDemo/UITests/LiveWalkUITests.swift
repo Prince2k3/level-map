@@ -219,13 +219,19 @@ final class LiveWalkUITests: XCTestCase {
         let walkOnScreen = [node("5,000"), node("5,001")].contains { $0.exists && mapArea.intersects($0.frame) }
         XCTAssertFalse(walkOnScreen, "Scrolled away from the walk: map \(mapArea), 5,000 at \(node("5,000").frame), 5,001 at \(node("5,001").frame)")
 
-        // Reaching the next level brings the map back to it.
+        // User-owned camera framing survives arrival; only an explicit recenter resumes tracking.
         waitUntil(timeout: 30) { self.label("levelLabel") == "Level 5,001" }
         app.buttons["Stop"].tap()
         pause(1.5)
-        XCTAssertTrue(visibleMapArea().contains(center("5,001")), "Back on screen")
-        let avatar = try XCTUnwrap(avatarPosition())
-        XCTAssertLessThan(avatar.distance(to: center("5,001")), 15)
+        let current = node("5,001")
+        XCTAssertFalse(current.exists && visibleMapArea().intersects(current.frame),
+                       "Arrival must not steal the camera from someone browsing other levels")
+        let recenter = app.buttons["backToYou"]
+        XCTAssertTrue(recenter.waitForExistence(timeout: 5))
+        recenter.tap()
+        waitUntil { self.avatarPosition().map { self.visibleMapArea().contains($0) } ?? false }
+        XCTAssertTrue(node("5,001").exists)
+        XCTAssertTrue(visibleMapArea().contains(try XCTUnwrap(avatarPosition())), "Recenter brings the walk back")
     }
 
     // MARK: - The completed road

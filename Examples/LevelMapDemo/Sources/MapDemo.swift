@@ -78,13 +78,14 @@ struct MapDemo: View {
     private static let clean = ProcessInfo.processInfo.arguments.contains("-clean")
     private static let probing = ProcessInfo.processInfo.arguments.contains("-uitest")
     @State private var probe = AvatarProbe()
+    @State private var position: LevelMapCameraPosition = .automatic
 
     var body: some View {
         VStack(spacing: 0) {
             if !Self.clean { controls }
             Group {
                 if sample == .lessons {
-                    LessonsMap(completed: current)
+                    LessonsMap(position: $position, completed: current)
                 } else if sample == .trail {
                     TrailMap(current: current, progress: 1 - metresLeft / Self.legLength, walking: walking,
                              startsAtEnd: startsAtEnd)
@@ -102,7 +103,10 @@ struct MapDemo: View {
         }
         .onChange(of: sample, initial: true) {
             current = Self.clamped(current, for: sample)
+            position = .automatic
         }
+        .onChange(of: startsAtEnd) { position = .automatic }
+        .onChange(of: horizontal) { position = .automatic }
         .task {
             // `-autoplay` completes a few levels on its own, for recording the README GIFs.
             guard ProcessInfo.processInfo.arguments.contains("-autoplay") else { return }
@@ -132,7 +136,7 @@ struct MapDemo: View {
     private var map: some View {
         LevelMap(EndlessLevels(), route: sample.route,
                  axis: horizontal ? .horizontal : .vertical,
-                 startsAtEnd: startsAtEnd, current: current) { [probe] context in
+                 startsAtEnd: startsAtEnd, current: current, position: $position) { [probe] context in
             LevelNode(number: context.index + 1, state: context.state, size: sample.nodeSize)
                 .background {
                     if Self.probing {
@@ -163,6 +167,11 @@ struct MapDemo: View {
             }
         }
         .levelMapProgress(toNext: 1 - metresLeft / Self.legLength)
+        .levelMapRecenterButton { recenter in
+            Button("Back to you", systemImage: "location.fill", action: recenter)
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("backToYou")
+        }
     }
 
     /// 1 while the avatar stands at a level, falling to 0 a short way along the road.
@@ -217,7 +226,7 @@ struct MapDemo: View {
                 .monospacedDigit()
                 Spacer()
                 Button(walking ? "Stop" : "Walk") { walking.toggle() }
-                Button("Go to 1") { current = 0; metresLeft = Self.legLength }
+                Button("Go to 1") { current = 0; metresLeft = Self.legLength; position = .automatic }
             }
         }
         .font(.footnote)

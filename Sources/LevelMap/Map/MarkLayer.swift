@@ -37,7 +37,7 @@ extension View {
     /// ```
     /// Positions are given in levels, as in ``LevelMapGeometry``: `3.5` is halfway along the road
     /// from level 3 to level 4. Marks keep their size while
-    /// ``SwiftUICore/View/levelMapFollowsAvatar(_:zoom:anchor:scalesMarkers:)`` magnifies the map,
+    /// the camera’s `.avatar(zoom:anchor:scalesMarkers:)` framing magnifies the map,
     /// and are drawn over the level nodes, under the avatar.
     ///
     /// Unlike a ``SwiftUICore/View/levelMapLayer(_:content:)``, marks take touches and VoiceOver

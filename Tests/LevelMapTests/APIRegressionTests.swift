@@ -48,7 +48,6 @@ struct APIRegressionTests {
         state.position = .automatic
         LevelMapCameraPosition.userDidScroll(binding, isFollowing: false)
         #expect(state.writes == 2)
-        LevelMapCameraPosition.userDidScroll(nil, isFollowing: false)
     }
 
     @Test @MainActor func followingStillLocksManualCameraChanges() {
@@ -71,15 +70,15 @@ struct APIRegressionTests {
     }
 
     #if os(macOS)
-    @Test @MainActor func legacyWheelRoutingAcceptsBothAxesOnlyInsideTheMap() {
+    @Test @MainActor func macOS14WheelRoutingAcceptsBothAxesOnlyInsideTheMap() {
         let bounds = CGRect(x: 0, y: 0, width: 300, height: 500)
-        #expect(LegacyWheelObserver.WheelView.acceptsScroll(at: CGPoint(x: 100, y: 100), in: bounds,
+        #expect(MacOS14WheelObserver.WheelView.acceptsScroll(at: CGPoint(x: 100, y: 100), in: bounds,
                                                            delta: CGSize(width: 0, height: 5)))
-        #expect(LegacyWheelObserver.WheelView.acceptsScroll(at: CGPoint(x: 100, y: 100), in: bounds,
+        #expect(MacOS14WheelObserver.WheelView.acceptsScroll(at: CGPoint(x: 100, y: 100), in: bounds,
                                                            delta: CGSize(width: -5, height: 0)))
-        #expect(!LegacyWheelObserver.WheelView.acceptsScroll(at: CGPoint(x: 100, y: -10), in: bounds,
+        #expect(!MacOS14WheelObserver.WheelView.acceptsScroll(at: CGPoint(x: 100, y: -10), in: bounds,
                                                             delta: CGSize(width: 0, height: 5)))
-        #expect(!LegacyWheelObserver.WheelView.acceptsScroll(at: CGPoint(x: 100, y: 100), in: bounds, delta: .zero))
+        #expect(!MacOS14WheelObserver.WheelView.acceptsScroll(at: CGPoint(x: 100, y: 100), in: bounds, delta: .zero))
     }
     #endif
 

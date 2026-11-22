@@ -7,6 +7,7 @@ import SwiftUI
 /// Every unit takes ten slots on the route: the first holds the unit's banner, drawn in a layer
 /// across the full width, and the other nine are its lessons.
 struct LessonsMap: View {
+    var position: Binding<LevelMapCameraPosition>? = nil
     /// Lessons completed so far.
     let completed: Int
 
@@ -19,7 +20,7 @@ struct LessonsMap: View {
     }
 
     var body: some View {
-        LevelMap(EndlessLevels(), route: .lessons, current: Self.slot(ofLesson: completed)) { context in
+        LevelMap(EndlessLevels(), route: .lessons, current: Self.slot(ofLesson: completed), position: position) { context in
             if context.index % Self.slotsPerUnit == 0 {
                 // The banner is drawn in a layer, across the map.
                 Color.clear.frame(width: 1, height: 1)
@@ -42,6 +43,7 @@ struct LessonsMap: View {
                 }
             }
         }
+        .levelMapRecenterButton()
         .safeAreaInset(edge: .top, spacing: 0) { LessonStatsBar() }
     }
 }

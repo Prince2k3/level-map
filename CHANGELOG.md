@@ -2,37 +2,27 @@
 
 ## Unreleased
 
-- Raised the minimum iOS version to 18 in the package and demo. macOS 14 and visionOS 1 remain supported.
-- Explicit transaction animations are preserved when `disablesAnimations` is true; only fallback
-  insertion is suppressed. Reduce Motion still suppresses map-generated movement.
-- Camera ownership now handles accessibility paging on all supported platforms and wheel input on
-  macOS 14, in addition to native scroll phases on newer systems.
-- Corrected content-margin override documentation: the modifier closest to the map wins for an
-  overlapping edge. Existing modifier behavior is unchanged. Added audit regression coverage.
+### Breaking pre-release cleanup
 
-- Added `LevelMapNodeContext` and a single-argument `content:` node builder for all data-source
-  and collection initializers. Existing three-argument `node:` and four-argument `placedNode:`
-  builders adapt to the same context and remain source-compatible.
-- Added the consistently prefixed `levelMapSpacing(_:)`; `levelSpacing(_:)` remains an alias.
-  Updated the guides, demo and editor's generated Swift to prefer the context API and new name.
+- Node content uses a single `LevelMapNodeContext`; removed three-argument `node:` and
+  four-argument `placedNode:` initializers, including their collection overloads.
+- Removed `levelSpacing(_:)`; use `levelMapSpacing(_:)`.
+- Removed the follow, recenter-trigger and focus-offset modifiers. Camera control uses
+  `LevelMapCameraPosition` through `position:`; the built-in recenter button remains available.
+- Maps without an external binding use an internal automatic camera with the same ownership
+  rules. Manually scrolling stops tracking until recentered.
+- Migrated the demo, editor, docs and tests to the canonical API; added a migration guide.
 
-- Placement and layer geometry now carry the map's layout direction. Leading/trailing remain
-  logical SwiftUI sides, with explicit `physicalSide`, `physicalCrossFraction` and a physical-coordinate
-  initializer for screen-coordinate integrations. Horizontal-map top/bottom behavior and existing
-  initializer calls are preserved. Added rendered RTL regression tests for nodes, roads and marks.
+### Added and fixed
 
-- Added `LevelMapCameraPosition` and a `position:` binding on all map initializers for automatic,
-  fractional-level and avatar-follow framing. User scrolling writes back camera ownership.
-- Bound framing takes precedence over legacy following; existing unbound camera APIs are unchanged.
-  Recenter controls also work with the binding. Trail demonstrates the new API.
-
-- Added collection initializers with explicit `id:` or `Identifiable` elements, including slices.
-- Added `LevelMapDataSource.levelID(at:)`, with a positional default for existing sources.
-- Node identities now follow model IDs within their lazy chunk. Moving across chunk boundaries
-  may recreate local view state; store durable state in the model.
-- Caller transaction animations take precedence over default camera and node animations.
-  Disabled animation transactions and Reduce Motion suppress default map animations.
-
+- Collection identity, context-based node content, bound camera framing and explicit RTL placement.
+- Type-erased arrays use uniform slot identities instead of mixing model IDs and offsets,
+  preventing collisions in heterogeneous data. Use explicit `id:` for stable model identity.
+- Explicit caller animations survive `disablesAnimations`; disabled transactions prevent fallback
+  insertion. Camera input includes accessibility paging and macOS 14 wheel observation.
+- Content-margin documentation matches environment precedence. Very large negative geometry
+  positions clamp safely to the road start rather than trapping during integer conversion.
+- Minimum iOS version is 18; macOS 14 and visionOS 1 remain supported.
 
 ## 0.3.0 (2026-11-21)
 

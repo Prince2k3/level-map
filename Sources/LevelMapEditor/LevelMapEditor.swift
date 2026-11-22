@@ -87,8 +87,8 @@ public struct LevelMapEditor: View {
         let design = design.wrappedValue
         if let route = try? design.buildRoute() {
             themed(
-                LevelMap(0..<design.previewLevelCount, route: route, startsAtEnd: design.startsAtEnd) { _, index, _ in
-                    Text("\(index + 1)")
+                LevelMap(0..<design.previewLevelCount, route: route, startsAtEnd: design.startsAtEnd) { context in
+                    Text("\(context.index + 1)")
                         .font(.caption.bold().monospacedDigit())
                         .foregroundStyle(.white)
                         .frame(width: 34, height: 34)

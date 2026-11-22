@@ -41,6 +41,7 @@ more than level 5.
 ### Layers, placement and the camera
 
 - <doc:LayersAndCamera>
+- <doc:PreparingForRelease>
 - ``LevelMapGeometry``
 - ``LevelPlacement``
 - ``LevelMapNodeContext``

@@ -26,7 +26,7 @@ struct CameraUserInteraction: ViewModifier {
             content
                 .simultaneousGesture(DragGesture(minimumDistance: 10).onChanged { _ in if isScrollEnabled { action() } })
                 #if os(macOS)
-                .background(LegacyWheelObserver(action: { if isScrollEnabled { action() } }))
+                .background(MacOS14WheelObserver(action: { if isScrollEnabled { action() } }))
                 #endif
         }
     }
@@ -56,7 +56,7 @@ struct CameraScrollSnapshot: Equatable {
 
 #if os(macOS)
 /// Only used on macOS 14, where SwiftUI has no scroll-phase callback.
-struct LegacyWheelObserver: NSViewRepresentable {
+struct MacOS14WheelObserver: NSViewRepresentable {
     let action: @MainActor () -> Void
 
     func makeNSView(context: Context) -> WheelView { WheelView(action: action) }

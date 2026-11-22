@@ -52,11 +52,14 @@ iOS 18, macOS 14 and visionOS 1. Swift 6.
 
 ## Installation
 
-Add the package in Xcode with **File › Add Package Dependencies…**, or in `Package.swift`:
+This API cleanup is unreleased. Add this checkout as a local package in Xcode, or reference
+its path in your app's `Package.swift` (adjust the path to your checkout):
 
 ```swift
-.package(url: "https://github.com/Prince2k3/level-map.git", from: "0.3.0"),
+.package(path: "../level-map"),
 ```
+
+Earlier tags contain the pre-cleanup API and do not match these examples.
 
 Then add the `LevelMap` product to your target. If you want the editor, add `LevelMapEditor` to a
 debug-only target or screen.
@@ -91,6 +94,14 @@ struct WorldScreen: View {
     }
 }
 ```
+
+## Pre-release API cleanup
+
+Node builders now take one `LevelMapNodeContext`. Use `.levelMapSpacing` and a
+`LevelMapCameraPosition` binding for camera control. The superseded multi-argument builders,
+spacing alias, and follow/recenter-trigger/focus-offset modifiers have been removed. See the
+DocC guide “Moving to the release API” for migration details. All demo and editor examples use
+the current API.
 
 ## Documentation
 

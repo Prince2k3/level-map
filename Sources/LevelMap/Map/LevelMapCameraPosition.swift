@@ -8,7 +8,7 @@ public struct LevelMapCameraPosition: Equatable, Sendable {
     enum Framing: Equatable, Sendable {
         case automatic
         case level(Double, UnitPoint)
-        case avatar(LevelMapFollow)
+        case avatar(AvatarFollowConfiguration)
         case user
     }
     let framing: Framing
@@ -37,12 +37,12 @@ public struct LevelMapCameraPosition: Equatable, Sendable {
     public static func avatar(zoom: CGFloat = 2.2,
                               anchor: UnitPoint = UnitPoint(x: 0.5, y: 0.45),
                               scalesMarkers: Bool = true) -> Self {
-        Self(framing: .avatar(LevelMapFollow(zoom: zoom.isFinite ? max(zoom, 1) : 1,
+        Self(framing: .avatar(AvatarFollowConfiguration(zoom: zoom.isFinite ? max(zoom, 1) : 1,
                                              anchor: normalized(anchor), scalesMarkers: scalesMarkers)))
     }
 
-    @MainActor static func userDidScroll(_ binding: Binding<Self>?, isFollowing: Bool) {
-        guard let binding, !isFollowing, !binding.wrappedValue.positionedByUser else { return }
+    @MainActor static func userDidScroll(_ binding: Binding<Self>, isFollowing: Bool) {
+        guard !isFollowing, !binding.wrappedValue.positionedByUser else { return }
         binding.wrappedValue = .userPositioned
     }
 
@@ -51,7 +51,7 @@ public struct LevelMapCameraPosition: Equatable, Sendable {
     /// Whether the camera continuously tracks the player's avatar.
     public var followsAvatar: Bool { followConfiguration != nil }
 
-    var followConfiguration: LevelMapFollow? {
+    var followConfiguration: AvatarFollowConfiguration? {
         if case let .avatar(follow) = framing { return follow }
         return nil
     }
@@ -78,4 +78,11 @@ public struct LevelMapCameraPosition: Equatable, Sendable {
         func clamp(_ value: CGFloat) -> CGFloat { value.isFinite ? min(max(value, 0), 1) : 0.5 }
         return UnitPoint(x: clamp(point.x), y: clamp(point.y))
     }
+}
+
+/// Camera configuration used exclusively by avatar framing.
+struct AvatarFollowConfiguration: Sendable, Equatable {
+    let zoom: CGFloat
+    let anchor: UnitPoint
+    let scalesMarkers: Bool
 }

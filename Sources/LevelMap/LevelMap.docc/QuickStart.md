@@ -4,12 +4,12 @@ Put a scrolling level map on screen, mark the player's progress and give it a lo
 
 ## Add the package
 
-In Xcode choose **File › Add Package Dependencies…** and enter the repository URL, or add it to
-`Package.swift`:
+The cleaned-up API is unreleased. Add this checkout as a local package in Xcode, or reference
+its path in your app's `Package.swift` (adjust the path to your checkout):
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/<you>/level-map.git", from: "0.2.0"),
+    .package(path: "../level-map"),
 ],
 targets: [
     .target(name: "MyGame", dependencies: [
@@ -47,10 +47,11 @@ struct WorldScreen: View {
   to build your own.
 - **Node.** Your view for one level. It receives a ``LevelMapNodeContext`` with the model in
   `level`, a zero-based road `index`, its `state` (`.completed`, `.current` or `.locked`), and
-  `placement` for side, heading and layout direction. The original three- and four-argument
-  builders are still supported.
+  `placement` for side, heading and layout direction.
 
-The map scrolls to `current` when it first appears and again whenever `current` changes.
+The automatic camera opens on the player and tracks progress until manual scrolling takes
+ownership. Use `.levelMapRecenterButton()` to resume tracking, or supply a camera binding for
+explicit framing. See <doc:PreparingForRelease> when updating pre-release call sites.
 
 ## Draw the level nodes
 

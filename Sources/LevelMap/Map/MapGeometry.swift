@@ -29,7 +29,7 @@ public struct LevelMapGeometry: Sendable {
     public let levelCount: Int?
     /// The levels inside the layer. Draw what belongs to these; the layer is rebuilt as the map scrolls.
     public let levels: Range<Int>
-    /// How far ``SwiftUICore/View/levelMapFollowsAvatar(_:zoom:anchor:scalesMarkers:)`` has magnified
+    /// How far the camera’s `.avatar(zoom:anchor:scalesMarkers:)` framing has magnified
     /// the map, 1 when it isn't following. Shrink labels and markers by this much to keep their size.
     public let zoom: CGFloat
 
@@ -109,13 +109,15 @@ public struct LevelMapGeometry: Sendable {
     /// The distance along the road of a position given in levels.
     private func distance(atLevel level: Double) -> CGFloat? {
         guard level.isFinite, layout.levelCount != 0, let first = layout.road.distance(ofLevel: 0) else { return nil }
-        let whole = level.rounded(.down)
-        let index = Int(min(whole, Double(Int.max / 2)))
-        let fraction = CGFloat(level - whole)
-        if index < 0 {
+        // Handle negative positions before converting to Int: a finite Double can still
+        // be far below Int.min. Before-start positions clamp to the beginning of the road.
+        if level < 0 {
             let next = layout.road.distance(ofLevel: 1) ?? first + 1
             return max(first + (next - first) * CGFloat(level), 0)
         }
+        let whole = level.rounded(.down)
+        let index = Int(min(whole, Double(Int.max / 2)))
+        let fraction = CGFloat(level - whole)
         // Past the last level, the road runs on to its end.
         if let count = layout.levelCount, index >= count - 1 {
             let last = layout.road.distance(ofLevel: count - 1) ?? first
@@ -140,8 +142,7 @@ public struct LevelMapGeometry: Sendable {
     }
 }
 
-/// Where a level sits on the map, passed to the node closure of
-/// ``LevelMap/init(_:route:axis:startsAtEnd:current:placedNode:)``.
+/// Where a level sits on the map, available through ``LevelMapNodeContext/placement``.
 public struct LevelPlacement: Sendable, Hashable {
     /// Which half of the map a level is in.
     public enum Side: Sendable, Hashable {

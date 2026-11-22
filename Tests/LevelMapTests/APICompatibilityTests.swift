@@ -2,7 +2,7 @@ import SwiftUI
 import Testing
 @testable import LevelMap
 
-@Suite("Collection API compatibility")
+@Suite("Public collection API")
 struct APICompatibilityTests {
     struct Stop: Identifiable { let id: String }
 
@@ -14,6 +14,16 @@ struct APICompatibilityTests {
         #expect(data.level(at: 1) == "c")
     }
 
+    @Test func typeErasedArraysDoNotMixModelIDsWithSlotIDs() {
+        struct Numbered: Identifiable { let id: Int }
+        let mixed: [Any] = [Numbered(id: 1), "plain"]
+        #expect(mixed.levelID(at: 0) == AnyHashable(0))
+        #expect(mixed.levelID(at: 1) == AnyHashable(1))
+        let identified = [Numbered(id: 10), Numbered(id: 20)]
+        #expect(identified.levelID(at: 0) == AnyHashable(10))
+        #expect(identified.levelID(at: 1) == AnyHashable(20))
+    }
+
     @Test func identityFollowsElementsAcrossInsertionAndReordering() {
         let old = LevelMapCollection(["a", "b", "c"], id: \.self)
         let new = LevelMapCollection(["c", "x", "a", "b"], id: \.self)
@@ -22,15 +32,15 @@ struct APICompatibilityTests {
         #expect(old.levelID(at: 2) == new.levelID(at: 0))
     }
 
-    @Test @MainActor func initializersRemainSourceCompatible() {
+    @Test @MainActor func canonicalInitializersSupportAllDataForms() {
         let stops = [Stop(id: "a"), Stop(id: "b")]
-        _ = LevelMap(stops, route: .straight) { stop, _, _ in Text(stop.id) }
+        _ = LevelMap(stops, route: .straight) { context in Text(context.level.id) }
         #expect(stops.levelID(at: 0) == AnyHashable("a"))
-        _ = LevelMap(stops[...], route: .straight) { stop, _, _, _ in Text(stop.id) }
-        _ = LevelMap(stops[...], id: \.id, route: .straight) { stop, _, _ in Text(stop.id) }
-        _ = LevelMap(0..<10, route: .straight) { _, index, _ in Text("\(index)") }
-        _ = LevelMap(["a", "b"], route: .straight) { item, _, _ in Text(item) }
-        _ = LevelMap(EndlessLevels(), route: .straight) { _, index, _ in Text("\(index)") }
+        _ = LevelMap(stops[...], route: .straight) { context in Text(context.level.id) }
+        _ = LevelMap(stops[...], id: \.id, route: .straight) { context in Text(context.level.id) }
+        _ = LevelMap(0..<10, route: .straight) { context in Text("\(context.index)") }
+        _ = LevelMap(["a", "b"], route: .straight) { context in Text(context.level) }
+        _ = LevelMap(EndlessLevels(), route: .straight) { context in Text("\(context.index)") }
     }
 
     @Test @MainActor func animationRespectsCallerAndDisabling() {

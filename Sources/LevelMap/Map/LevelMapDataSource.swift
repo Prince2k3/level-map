@@ -20,7 +20,11 @@ extension Array: LevelMapDataSource {
     public var levelCount: Int? { count }
     public func level(at index: Int) -> Element { self[index] }
     public func levelID(at index: Int) -> AnyHashable {
-        if let item = self[index] as? any Identifiable { return erasedLevelID(item) }
+        // Use one identity scheme for the entire collection. A type-erased array may mix
+        // identifiable and ordinary values whose model IDs collide with positional offsets.
+        if Element.self is any Identifiable.Type, let item = self[index] as? any Identifiable {
+            return erasedLevelID(item)
+        }
         return AnyHashable(index)
     }
 }

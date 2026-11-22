@@ -2,11 +2,11 @@ import SwiftUI
 import Testing
 @testable import LevelMap
 
-@Suite("Node context and modifier compatibility")
+@Suite("Node context and configuration")
 struct NodeContextTests {
     struct Stop: Identifiable { let id: String }
 
-    @Test @MainActor func allDataFormsAcceptContextContentWithoutBreakingLegacyBuilders() {
+    @Test @MainActor func allDataFormsAcceptContextContent() {
         let camera = Binding.constant(LevelMapCameraPosition.automatic)
         let stops = [Stop(id: "a"), Stop(id: "b")]
         _ = LevelMap(stops, route: .straight) { context in Text(context.level.id) }
@@ -18,8 +18,7 @@ struct NodeContextTests {
         _ = LevelMap(EndlessLevels(), route: .straight, current: 4, position: camera) { context in
             Text("\(context.level)")
         }
-        _ = LevelMap(stops, route: .straight, node: { stop, _, _ in Text(stop.id) })
-        _ = LevelMap(stops, route: .straight, placedNode: { stop, _, _, _ in Text(stop.id) })
+        _ = LevelMap(stops, route: .straight, content: { context in Text(context.level.id) })
     }
 
     @Test @MainActor func renderedContextContainsModelRoadOffsetStateAndRTLPlacement() throws {
@@ -39,45 +38,11 @@ struct NodeContextTests {
         }
     }
 
-    @Test @MainActor func legacyBuildersReceiveTheSameValuesAsContextContent() throws {
-        let modern = ContextRecorder(), legacy = ContextRecorder(), placed = ContextRecorder()
-        let route = LevelRoute { Straight(levels: 3) }
-        let models = ["one", "two", "three"]
-        let modernMap = LevelMap(models, route: route, current: 1, content: { context in
-            let _ = modern.nodes.updateValue(context, forKey: context.index)
-            Color.red.frame(width: 10, height: 10)
-        })
-        let legacyMap = LevelMap(models, route: route, current: 1, node: { level, index, state in
-            let _ = legacy.nodes.updateValue(LevelMapNodeContext(level: level, index: index, state: state,
-                                                                 placement: LevelPlacement(crossFraction: 0.5, heading: .zero)),
-                                             forKey: index)
-            Color.red.frame(width: 10, height: 10)
-        })
-        let placedMap = LevelMap(models, route: route, current: 1, placedNode: { level, index, state, placement in
-            let _ = placed.nodes.updateValue(LevelMapNodeContext(level: level, index: index, state: state,
-                                                                 placement: placement), forKey: index)
-            Color.red.frame(width: 10, height: 10)
-        })
-        _ = try #require(ImageRenderer(content: modernMap.frame(width: 300, height: 600)).cgImage)
-        _ = try #require(ImageRenderer(content: legacyMap.frame(width: 300, height: 600)).cgImage)
-        _ = try #require(ImageRenderer(content: placedMap.frame(width: 300, height: 600)).cgImage)
-        for index in models.indices {
-            let context = try #require(modern.nodes[index])
-            let old = try #require(legacy.nodes[index])
-            #expect(old.level == context.level)
-            #expect(old.index == context.index)
-            #expect(old.state == context.state)
-            #expect(placed.nodes[index] == context)
-        }
-    }
-
-    @Test @MainActor func spacingAliasAndCanonicalNameUseTheSameEnvironment() throws {
-        let old = SpacingRecorder(), new = SpacingRecorder(), defaultValue = SpacingRecorder()
-        _ = try #require(ImageRenderer(content: SpacingReader(recorder: old).levelSpacing(145)).cgImage)
-        _ = try #require(ImageRenderer(content: SpacingReader(recorder: new).levelMapSpacing(145)).cgImage)
+    @Test @MainActor func spacingUsesCanonicalEnvironmentAndDefault() throws {
+        let explicit = SpacingRecorder(), defaultValue = SpacingRecorder()
+        _ = try #require(ImageRenderer(content: SpacingReader(recorder: explicit).levelMapSpacing(145)).cgImage)
         _ = try #require(ImageRenderer(content: SpacingReader(recorder: defaultValue)).cgImage)
-        #expect(old.value == 145)
-        #expect(new.value == old.value)
+        #expect(explicit.value == 145)
         #expect(defaultValue.value == 110)
     }
 
@@ -94,7 +59,7 @@ struct NodeContextTests {
 }
 @MainActor private final class SpacingRecorder { var value: CGFloat? }
 private struct SpacingReader: View {
-    @Environment(\.levelSpacing) private var spacing
+    @Environment(\.levelMapSpacing) private var spacing
     let recorder: SpacingRecorder
     var body: some View {
         let _ = recorder.value = spacing
