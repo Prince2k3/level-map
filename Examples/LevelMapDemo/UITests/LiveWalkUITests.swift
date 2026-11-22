@@ -167,12 +167,15 @@ final class LiveWalkUITests: XCTestCase {
         launch()
         app.buttons["Walk"].tap()
         waitUntil { (self.metres() ?? 120) <= 80 }
-        app.buttons["Go to 1"].tap()
+        // Stop first: "Go to 1" doesn't end the walk, and XCUITest waits for the app to go idle
+        // between taps, so a walk still running would carry the avatar on past level 1.
         app.buttons["Stop"].tap()
+        app.buttons["Go to 1"].tap()
         XCTAssertTrue(node("1").waitForExistence(timeout: 5))
         pause(1.5)
 
         XCTAssertEqual(label("levelLabel"), "Level 1")
+        XCTAssertFalse(app.staticTexts["metresLabel"].exists, "The part-walked leg is dropped")
         XCTAssertEqual(node("1").value as? String, "Current level")
         let avatar = try XCTUnwrap(avatarPosition())
         XCTAssertTrue(app.frame.contains(avatar), "The avatar jumped to level 1, on screen")

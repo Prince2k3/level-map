@@ -55,7 +55,7 @@ iOS 17, macOS 14 and visionOS 1. Swift 6.
 Add the package in Xcode with **File › Add Package Dependencies…**, or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/<you>/level-map.git", from: "0.2.0"),
+.package(url: "https://github.com/Prince2k3/level-map.git", from: "0.3.0"),
 ```
 
 Then add the `LevelMap` product to your target. If you want the editor, add `LevelMapEditor` to a

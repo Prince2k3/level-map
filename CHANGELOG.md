@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-21)
 
 ### Added
 
@@ -19,11 +19,16 @@
 ### Changed
 
 - The Trail demo uses `levelMapRecenterButton` in place of its own overlay.
+- Faster updates while scrolling: distance checks against the road use an index, the avatar's
+  visibility is worked out without redrawing the layers, and chunk scenes are reused within an
+  update instead of being rebuilt for every visible chunk.
 
 ### Fixed
 
 - When following stops, the zoom out and the scroll back to the avatar run as one animation
   instead of two that pull against each other.
+- With content margins set, a level near either end of the map can scroll clear of the panel
+  covering that edge, as `contentMargins` lets a list do.
 
 ## 0.2.0 (2026-11-18)
 
