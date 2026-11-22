@@ -207,3 +207,41 @@ withTransaction(transaction) {
 
 A plain transaction with a nil animation still allows the map's compatibility defaults.
 Reduce Motion suppresses map-generated animations.
+
+## Control the camera with a binding
+
+Keep camera ownership separate from the player's reached level:
+
+```swift
+@State private var position: LevelMapCameraPosition = .automatic
+
+var body: some View {
+    LevelMap(stops, id: \.id, route: .serpentine(), current: reachedLevel,
+             position: $position) { stop, index, state in
+        StopPin(stop: stop, state: state)
+    }
+    .levelMapAvatar { Walker() }
+    .levelMapProgress(toNext: walked)
+}
+```
+
+Assign `.level(12.5)` to view halfway between levels 12 and 13, or
+`.avatar(zoom: 2.2, anchor: UnitPoint(x: 0.5, y: 0.45))` to follow the player.
+Assign `.automatic` to return to the player's position without magnifying. Use `withAnimation`
+to choose the transition; disabled transactions and Reduce Motion are respected.
+
+Manual scrolling writes a position with `positionedByUser == true`. In that state, player
+updates no longer move the camera. The binding reports ownership, not a measured viewport:
+`level` is only populated for explicit level requests. Following locks manual scrolling,
+just as the existing follow modifier does. On iOS 17/macOS 14/visionOS 1, manual ownership
+is detected from dragging; newer systems use native scroll phases as well.
+
+When `position` is supplied, it takes precedence over `levelMapFollowsAvatar`. The existing
+recenter button and recenter trigger assign `.automatic` to the binding. Focus offsets and
+content margins still apply to automatic framing; explicit level anchors refer to the whole
+visible map. A finite map clamps an out-of-range target to its last level without rewriting
+the request. Endless maps load enough chunks to reach the requested level. `current` remains
+player progress and is never changed by the camera.
+
+Omit `position` to retain the existing behavior of all camera modifiers. Collection and
+placed-node initializers accept the binding too.

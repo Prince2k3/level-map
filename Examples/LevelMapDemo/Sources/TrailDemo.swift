@@ -16,6 +16,7 @@ struct TrailMap: View {
     var legLength = 2
 
     @State private var dayStart: Int?
+    @State private var position: LevelMapCameraPosition = .automatic
 
     /// The trail goes on as far as the walker does.
     private static let stops = EndlessLevels()
@@ -24,7 +25,7 @@ struct TrailMap: View {
 
     var body: some View {
         LevelMap(Self.stops, route: .serpentine(amplitude: 0.34), startsAtEnd: startsAtEnd,
-                 current: current) { _, index, state, placement in
+                 current: current, position: $position) { _, index, state, placement in
             TrailPin(level: index, state: state, labelOnLeading: placement.side == .trailing,
                      isGoal: index == legEnd)
         }
@@ -52,7 +53,9 @@ struct TrailMap: View {
         }
         .levelMapAvatar { TrailWalker(isLive: walking) }
         .levelMapProgress(toNext: progress)
-        .levelMapFollowsAvatar(walking)
+        .onChange(of: walking, initial: true) {
+            position = walking ? .avatar() : .automatic
+        }
         .levelMapRecenterButton { recenter in
             Button("Back to you", systemImage: "location.fill", action: recenter)
                 .font(.subheadline.weight(.semibold))

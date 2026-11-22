@@ -43,6 +43,7 @@ more than level 5.
 - <doc:LayersAndCamera>
 - ``LevelMapGeometry``
 - ``LevelPlacement``
+- ``LevelMapCameraPosition``
 
 ### Routes
 

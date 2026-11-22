@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added `LevelMapCameraPosition` and a `position:` binding on all map initializers for automatic,
+  fractional-level and avatar-follow framing. User scrolling writes back camera ownership.
+- Bound framing takes precedence over legacy following; existing unbound camera APIs are unchanged.
+  Recenter controls also work with the binding. Trail demonstrates the new API.
+
 - Added collection initializers with explicit `id:` or `Identifiable` elements, including slices.
 - Added `LevelMapDataSource.levelID(at:)`, with a positional default for existing sources.
 - Node identities now follow model IDs within their lazy chunk. Moving across chunk boundaries

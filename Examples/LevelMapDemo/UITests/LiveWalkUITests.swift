@@ -18,6 +18,29 @@ final class LiveWalkUITests: XCTestCase {
         app?.terminate()
     }
 
+    func testTrailBoundCameraCanStopAndRecenterAfterManualScrolling() {
+        app = XCUIApplication()
+        app.launchArguments = ["-uitest", "-sample", "Trail", "-current", "3"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Walk"].waitForExistence(timeout: 10))
+        app.buttons["Walk"].tap()
+        XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout: 5))
+        app.buttons["Stop"].tap()
+        XCTAssertTrue(app.buttons["Walk"].waitForExistence(timeout: 5))
+
+        // The trail is bottom-up. Drag only inside the map, clear of the controls.
+        for _ in 0..<3 {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.45))
+                .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.9)))
+        }
+        let recenter = app.buttons["backToYou"]
+        XCTAssertTrue(recenter.waitForExistence(timeout: 10))
+        recenter.tap()
+        XCTAssertTrue(NSPredicate(format: "exists == false").evaluate(with: recenter)
+            || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                           object: recenter)], timeout: 10) == .completed)
+    }
+
     // MARK: - Standing on a level
 
     func testOpensOnCurrentLevelWithAvatarOnItsNode() throws {
