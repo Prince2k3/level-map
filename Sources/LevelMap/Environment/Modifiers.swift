@@ -144,7 +144,9 @@ extension View {
     /// Changes inside `withAnimation` glide the avatar along the road. When the player arrives,
     /// add 1 to `current` and set the progress back to 0 in the same update; the avatar stays
     /// where it is. Values are clamped to 0...1, and progress past the last level is ignored.
-    /// The map doesn't scroll as progress changes; it scrolls when `current` does.
+    /// While the avatar is visible, the map tracks progress as well as changes to `current`.
+    /// A caller-supplied transaction animation takes precedence over the default camera pace.
+    /// Set `Transaction.disablesAnimations` to suppress all default map animations.
     public func levelMapProgress(toNext progress: Double) -> some View {
         environment(\.levelMapProgress, progress)
     }

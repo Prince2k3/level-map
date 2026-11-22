@@ -175,3 +175,35 @@ and is kept inside the map; ``LevelMapMarkPlacement/inside(spacing:)`` takes the
 
 - ``SwiftUICore/View/levelMapMarks(_:at:placement:content:)``
 - ``LevelMapMarkPlacement``
+
+## Collection identity and animation ownership
+
+For changing collections, pass stable IDs, or use `Identifiable` elements:
+
+```swift
+LevelMap(stops, id: \.id, route: .serpentine(), current: arrived) { stop, index, state in
+    StopPin(stop: stop, state: state)
+}
+```
+
+Random-access collections, including slices with nonzero indices, work directly with `id:`.
+`current` and the node's index are always zero-based road offsets. Existing arrays, ranges,
+and custom data sources still work. Custom sources can implement `levelID(at:)`; its default
+uses the road offset. IDs must be unique and stable. Lazy chunks remain separate containers,
+so moving an element between chunks can recreate its local view state. Keep durable state
+in the model, keyed by its ID.
+
+Use `withAnimation` or a value animation on the map to supply the animation for an update.
+The map uses its existing walking and camera defaults only when there is no caller animation.
+To disable those defaults for an update, set `disablesAnimations` on the transaction:
+
+```swift
+var transaction = Transaction(animation: nil)
+transaction.disablesAnimations = true
+withTransaction(transaction) {
+    arrived = destination
+}
+```
+
+A plain transaction with a nil animation still allows the map's compatibility defaults.
+Reduce Motion suppresses map-generated animations.

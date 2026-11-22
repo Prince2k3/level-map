@@ -60,19 +60,20 @@ struct ChunkView<Data: LevelMapDataSource, Node: View>: View {
                 }
             }
 
-            ForEach(chunk.levels, id: \.self) { index in
+            ForEach(chunk.levels.map { LevelEntry(index: $0, id: data.levelID(at: $0)) }) { entry in
+                let index = entry.index
                 if let sample = layout.localSample(ofLevel: index, in: chunk) {
                     let state = LevelState(level: index, current: current)
                     node(data.level(at: index), index, state,
                          LevelPlacement(sample: sample, crossSize: frame.crossSize, axis: frame.axis, mirrored: mirrored))
-                        .animation(unlockAnimation, value: state)
+                        .modifier(MapDefaultAnimation(animation: unlockAnimation, value: state))
                         .accessibilityElement(children: .combine)
                         .accessibilityValue(state.accessibilityDescription)
                         .accessibilitySortPriority(-Double(index))
                         .modifier(RotorEntry(isCurrent: state == .current, id: MapItemID.level(index),
                                              namespace: rotorNamespace))
                         .scaleEffect(x: mirrorX * markerScale, y: mirrorY * markerScale)
-                        .id(MapItemID.level(index))
+                        .id(entry.id)
                         .position(frame.point(sample.position))
                 }
             }
@@ -241,4 +242,9 @@ extension LevelState {
         case .locked: Text("Locked")
         }
     }
+}
+
+private struct LevelEntry: Identifiable {
+    let index: Int
+    let id: AnyHashable
 }

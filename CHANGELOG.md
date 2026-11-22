@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Added collection initializers with explicit `id:` or `Identifiable` elements, including slices.
+- Added `LevelMapDataSource.levelID(at:)`, with a positional default for existing sources.
+- Node identities now follow model IDs within their lazy chunk. Moving across chunk boundaries
+  may recreate local view state; store durable state in the model.
+- Caller transaction animations take precedence over default camera and node animations.
+  Disabled animation transactions and Reduce Motion suppress default map animations.
+
+
 ## 0.3.0 (2026-11-21)
 
 ### Added
