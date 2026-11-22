@@ -245,6 +245,10 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                     }
                 }
                 .environment(\.levelMapZoom, camera.zoom)
+                // Room past the ends for the content margins, so the map can scroll a level near
+                // either end clear of whatever covers that edge, as `contentMargins` lets a list do.
+                .padding(axis == .vertical ? .top : .leading, scrollPadding.start)
+                .padding(axis == .vertical ? .bottom : .trailing, scrollPadding.end)
             }
             .scrollDisabled(follow != nil)
             // The scroll view's own coordinates, unmirrored, for finding the avatar on screen.
@@ -476,6 +480,13 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                           : (contentMargins.leading, contentMargins.trailing)
     }
 
+    /// The content margins along the scroll axis in the scroll view's own coordinates, which a
+    /// mirrored map runs from the far end of the screen.
+    private var scrollPadding: (start: CGFloat, end: CGFloat) {
+        let (start, end) = marginsAlong
+        return startsAtEnd ? (end, start) : (start, end)
+    }
+
     /// Whether the avatar, at rest, is on screen and at least 40 points from the ends of the part of
     /// the map the content margins leave uncovered.
     private func avatarIsVisible(bounds: [Int: Anchor<CGRect>], proxy: GeometryProxy, layout: ChunkLayout,
@@ -512,9 +523,12 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
 
         // Where the avatar will be once scrolled: the scroll view stops at its ends.
         let point = layout.road.sample(atDistance: distance).position
-        let position = layout.contentPosition(ofRouteY: point.y)
+        let padding = scrollPadding
+        let position = layout.contentPosition(ofRouteY: point.y) + padding.start
         var offset = max(position - contentTarget, 0)
-        if let extent = layout.contentExtent { offset = min(offset, max(extent - viewport, 0)) }
+        if let extent = layout.contentExtent.map({ $0 + padding.start + padding.end }) {
+            offset = min(offset, max(extent - viewport, 0))
+        }
         var along = position - offset
         if startsAtEnd { along = viewport - along }
         let avatar = axis == .vertical ? CGPoint(x: point.x, y: along) : CGPoint(x: along, y: point.x)

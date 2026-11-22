@@ -8,6 +8,8 @@ struct MapDemo: View {
         case exported = "Exported"
         /// A hiking trail built from layers, placements and the follow camera. See `TrailDemo.swift`.
         case trail = "Trail"
+        /// A course path with unit banners and no visible road. See `LessonsDemo.swift`.
+        case lessons = "Lessons"
         var id: Self { self }
 
         var route: LevelRoute {
@@ -22,6 +24,7 @@ struct MapDemo: View {
                     Repeat { Serpentine(levels: 6, halfWaves: 2) }
                 }
             case .serpentine, .trail: .serpentine(amplitude: 0.35)
+            case .lessons: .lessons
             case .zigzag: .zigzag()
             case .spline:
                 .spline([.init(x: 0.5, y: 0), .init(x: 0.15, y: 0.35), .init(x: 0.85, y: 0.7), .init(x: 0.5, y: 1)],
@@ -60,6 +63,7 @@ struct MapDemo: View {
     private static func clamped(_ level: Int, for sample: Sample) -> Int {
         switch sample {
         case .trail: min(level, 3)
+        case .lessons: min(level, 11)
         default: level
         }
     }
@@ -70,14 +74,18 @@ struct MapDemo: View {
     }()
     /// `-uitest` on launch shows where the avatar is, for the UI tests. The library hides the
     /// avatar from accessibility, since VoiceOver already announces the current level.
+    /// `-clean` on launch hides the controls, for README screenshots.
+    private static let clean = ProcessInfo.processInfo.arguments.contains("-clean")
     private static let probing = ProcessInfo.processInfo.arguments.contains("-uitest")
     @State private var probe = AvatarProbe()
 
     var body: some View {
         VStack(spacing: 0) {
-            controls
+            if !Self.clean { controls }
             Group {
-                if sample == .trail {
+                if sample == .lessons {
+                    LessonsMap(completed: current)
+                } else if sample == .trail {
                     TrailMap(current: current, progress: 1 - metresLeft / Self.legLength, walking: walking,
                              startsAtEnd: startsAtEnd)
                 } else if sample == .exported {

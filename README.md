@@ -9,6 +9,25 @@ of drawing it as an SVG. It can show thousands of levels, or never end.
   <img src="docs/images/editor.png" width="300" alt="The LevelMapEditor: a live map with draggable handles above a list of route segments">
 </p>
 
+## Examples
+
+Every map below is a `LevelMap` from the demo app. Only the route, the theme, the node views and
+the layers change.
+
+<p>
+  <img src="docs/images/lessons.png" width="200" alt="A course path in the style of language-learning apps: no visible road, chunky round lesson buttons weaving down a white page, a coral Unit 2 banner across the map, gold checkmarks for finished lessons, the current lesson with a progress ring and a START callout, grey locked lessons, and an illustration beside the path">
+  <img src="docs/images/trail.png" width="200" alt="A dark hiking trail: a dotted road that glows green where it has been walked, stops labelled on alternating sides, today's leg as a soft band and a Goal pennant">
+  <img src="docs/images/chapters.png" width="200" alt="The meadow theme: a winding sand road with numbered orange levels behind the walker, grey levels ahead, and trees and flowers scattered clear of the road">
+  <img src="docs/images/snow.png" width="200" alt="The snow theme on a zigzag route: a blue road, numbered levels, and trees, mountains and snowflakes beside it">
+</p>
+
+| Sample | Shows | Launch with |
+| --- | --- | --- |
+| Lessons | No road, unit banners in a full-width layer, illustrations placed by `placement(ofLevel:)` | `-sample Lessons -current 10` |
+| Trail | Dotted road with glow, labels by side, goal pennant, follow camera | `-sample Trail -current 3` |
+| World | Endless serpentine with chapters and theme transitions | `-sample World -look Chapters -current 16` |
+| Zigzag | Built-in `.zigzag` route with the snow theme | `-sample Zigzag -look Snow -current 6` |
+
 ## Features
 
 - **Routes in code.** Put segments together with a result builder: `Straight`, `Serpentine`,
@@ -94,13 +113,15 @@ cd Examples/LevelMapDemo && xcodegen && open LevelMapDemo.xcodeproj
 
 The demo accepts these launch arguments:
 
-- `-sample <World|Wave|Zigzag|Spline|Exported>`
+- `-sample <World|Wave|Zigzag|Spline|Exported|Trail|Lessons>`
+- `-current <level>`, the level to open on
 - `-horizontal`
 - `-editor`
 - `-autoplay`
 - `-walk`, which walks towards each level 10 m at a time
 - `-walkStep <metres>`, how far each simulated location update walks (10 by default)
 - `-look <theme>`, such as `-look Meadow`, to open with that theme
+- `-clean`, which hides the demo's controls, for screenshots
 - `-uitest`, which shows the probe labels the UI tests read
 
 ### UI tests

@@ -11,6 +11,10 @@
   a panel.
 - `levelMapMarks(_:at:placement:content:)` and `LevelMapMarkPlacement`, for views placed along
   the road that take touches, such as collectibles.
+- A Lessons sample in the demo app: a course path in the style of language-learning apps, with no
+  visible road, unit banners across the map and illustrations beside the path.
+- The demo's `-clean` launch argument hides its controls, for screenshots.
+- An examples gallery in the README.
 
 ### Changed
 
