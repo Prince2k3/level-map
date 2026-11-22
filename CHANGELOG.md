@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added `LevelMapNodeContext` and a single-argument `content:` node builder for all data-source
+  and collection initializers. Existing three-argument `node:` and four-argument `placedNode:`
+  builders adapt to the same context and remain source-compatible.
+- Added the consistently prefixed `levelMapSpacing(_:)`; `levelSpacing(_:)` remains an alias.
+  Updated the guides, demo and editor's generated Swift to prefer the context API and new name.
+
 - Placement and layer geometry now carry the map's layout direction. Leading/trailing remain
   logical SwiftUI sides, with explicit `physicalSide`, `physicalCrossFraction` and a physical-coordinate
   initializer for screen-coordinate integrations. Horizontal-map top/bottom behavior and existing

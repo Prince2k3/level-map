@@ -16,8 +16,8 @@ struct WorldScreen: View {
     let progress: Int
 
     var body: some View {
-        LevelMap(EndlessLevels(), route: .serpentine(), startsAtEnd: true, current: progress) { level, index, state in
-            LevelNode(number: index + 1, state: state)
+        LevelMap(EndlessLevels(), route: .serpentine(), startsAtEnd: true, current: progress) { context in
+            LevelNode(number: context.index + 1, state: context.state)
         }
         .levelMapTheme(.meadow)
     }
@@ -43,6 +43,7 @@ more than level 5.
 - <doc:LayersAndCamera>
 - ``LevelMapGeometry``
 - ``LevelPlacement``
+- ``LevelMapNodeContext``
 - ``LevelMapCameraPosition``
 
 ### Routes

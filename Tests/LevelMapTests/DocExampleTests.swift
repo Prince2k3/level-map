@@ -65,10 +65,10 @@ private struct ReadmeWorldScreen: View {
     @State private var current = 0
 
     var body: some View {
-        LevelMap(EndlessLevels(), route: DocExampleTests.forest, startsAtEnd: true, current: current) { _, index, state in
-            Text("\(index + 1)")
+        LevelMap(EndlessLevels(), route: DocExampleTests.forest, startsAtEnd: true, current: current) { context in
+            Text("\(context.index + 1)")
                 .frame(width: 52, height: 52)
-                .background(Circle().fill(state == .locked ? .gray : .orange))
+                .background(Circle().fill(context.state == .locked ? .gray : .orange))
         }
         .levelMapTheme(.plain)
         .levelMapAvatar { Image(systemName: "figure.walk.circle.fill").font(.largeTitle) }
@@ -82,8 +82,8 @@ private struct QuickStartWalkScreen: View {
     let legLength: Double
 
     var body: some View {
-        LevelMap(0..<20, route: .serpentine(), startsAtEnd: true, current: current) { _, index, state in
-            Text("\(index + 1)")
+        LevelMap(0..<20, route: .serpentine(), startsAtEnd: true, current: current) { context in
+            Text("\(context.index + 1)")
         }
         .levelMapProgress(toNext: 1 - metresLeft / legLength)
         .levelMapAvatar { Image(systemName: "figure.walk.circle.fill").font(.largeTitle) }

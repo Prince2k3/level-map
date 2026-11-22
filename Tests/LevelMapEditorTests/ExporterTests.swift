@@ -47,7 +47,7 @@ struct ExporterTests {
         extension View {
             /// Spacing and themes for `LevelRoute.forestWorld`.
             func forestWorldLook() -> some View {
-                levelSpacing(120)
+                levelMapSpacing(120)
                     .levelMapChapters(every: 20) { chapter in
                         [LevelMapTheme.meadow, .desert, .snow][chapter % 3]
                     }
@@ -55,7 +55,7 @@ struct ExporterTests {
         }
 
         // Usage:
-        // LevelMap(levels, route: .forestWorld, startsAtEnd: true) { level, index, state in
+        // LevelMap(levels, route: .forestWorld, startsAtEnd: true) { context in
         //     ...
         // }
         // .forestWorldLook()

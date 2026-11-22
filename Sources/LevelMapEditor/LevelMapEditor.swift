@@ -94,7 +94,7 @@ public struct LevelMapEditor: View {
                         .frame(width: 34, height: 34)
                         .background(Circle().fill(.black.opacity(0.45)))
                 }
-                .levelSpacing(design.spacing)
+                .levelMapSpacing(design.spacing)
                 .levelMapUnlockAnimation(nil)
                 .levelMapOverlay { context in
                     ControlPointOverlay(route: self.design.route, selection: $selection,

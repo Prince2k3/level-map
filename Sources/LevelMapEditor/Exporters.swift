@@ -38,7 +38,7 @@ public enum LevelMapExporter {
             "}",
             "",
             "// Usage:",
-            "// LevelMap(levels, route: .\(name)\(design.startsAtEnd ? ", startsAtEnd: true" : "")) { level, index, state in",
+            "// LevelMap(levels, route: .\(name)\(design.startsAtEnd ? ", startsAtEnd: true" : "")) { context in",
             "//     ...",
             "// }",
             "// .\(name)Look()",
@@ -57,7 +57,7 @@ public enum LevelMapExporter {
     // MARK: - Pieces
 
     private static func lookLines(_ design: LevelMapDesign) -> [String] {
-        var lines = ["        levelSpacing(\(number(design.spacing)))"]
+        var lines = ["        levelMapSpacing(\(number(design.spacing)))"]
         let themes = design.themes.map(identifier)
         if design.usesChapters, let length = design.chapterLength {
             let list = themes.enumerated().map { $0.offset == 0 ? "LevelMapTheme.\($0.element)" : ".\($0.element)" }

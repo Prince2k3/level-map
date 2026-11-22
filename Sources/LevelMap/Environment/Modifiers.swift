@@ -63,8 +63,13 @@ struct LevelMapRecenterButton: @unchecked Sendable {
 
 extension View {
     /// How far the road advances along the scroll axis per level, in points. Defaults to 110.
-    public func levelSpacing(_ spacing: CGFloat) -> some View {
+    public func levelMapSpacing(_ spacing: CGFloat) -> some View {
         environment(\.levelSpacing, spacing)
+    }
+
+    /// The original spelling of `levelMapSpacing(_:)`, kept for source compatibility.
+    public func levelSpacing(_ spacing: CGFloat) -> some View {
+        levelMapSpacing(spacing)
     }
 
     /// The least room left between a level and the map's edges, in points, so nodes (and an

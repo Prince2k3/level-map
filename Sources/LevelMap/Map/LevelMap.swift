@@ -6,10 +6,10 @@ import SwiftUI
 /// so it handles any number of levels, including an endless supply.
 ///
 /// ```swift
-/// LevelMap(0..<500, route: .serpentine(amplitude: 0.35), startsAtEnd: true, current: progress) { level, index, state in
-///     LevelNode(number: index + 1, state: state)
+/// LevelMap(0..<500, route: .serpentine(amplitude: 0.35), startsAtEnd: true, current: progress) { context in
+///     LevelNode(number: context.index + 1, state: context.state)
 /// }
-/// .levelSpacing(110)
+/// .levelMapSpacing(110)
 /// ```
 public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     private let data: Data
@@ -18,7 +18,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     private let startsAtEnd: Bool
     private let current: Int
     private let position: Binding<LevelMapCameraPosition>?
-    private let node: (Data.Level, Int, LevelState, LevelPlacement) -> Node
+    private let node: (LevelMapNodeContext<Data.Level>) -> Node
 
     @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.levelSpacing) private var spacing
@@ -80,13 +80,10 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         position: Binding<LevelMapCameraPosition>? = nil,
         @ViewBuilder node: @escaping (_ level: Data.Level, _ index: Int, _ state: LevelState) -> Node
     ) {
-        self.data = data
-        self.route = route
-        self.axis = axis
-        self.startsAtEnd = startsAtEnd
-        self.current = current
-        self.position = position
-        self.node = { level, index, state, _ in node(level, index, state) }
+        self.init(data, route: route, axis: axis, startsAtEnd: startsAtEnd, current: current,
+                  position: position, content: { context in
+            node(context.level, context.index, context.state)
+        })
     }
 
     /// Creates a map whose nodes are also told where they sit, so they can put labels on the
@@ -118,13 +115,42 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         @ViewBuilder placedNode: @escaping (_ level: Data.Level, _ index: Int, _ state: LevelState,
                                             _ placement: LevelPlacement) -> Node
     ) {
+        self.init(data, route: route, axis: axis, startsAtEnd: startsAtEnd, current: current,
+                  position: position, content: { context in
+            placedNode(context.level, context.index, context.state, context.placement)
+        })
+    }
+
+    /// Creates a map whose node content receives its model, road index, state and placement
+    /// together in a `LevelMapNodeContext`.
+    ///
+    /// ```swift
+    /// LevelMap(stops, route: .serpentine(), current: reached) { context in
+    ///     StopPin(stop: context.level, state: context.state)
+    /// }
+    /// .levelMapSpacing(110)
+    /// ```
+    /// - Parameters:
+    ///   - data: The levels to show, including arrays, ranges and endless data sources.
+    ///   - route: The road on which to place the nodes.
+    ///   - axis: The scroll axis.
+    ///   - startsAtEnd: Whether the first level starts at the bottom or trailing end.
+    ///   - current: The player's current zero-based road offset.
+    ///   - position: Optional two-way camera state, separate from player progress.
+    ///   - content: The view for a node, built from its context.
+    public init(
+        _ data: Data, route: LevelRoute, axis: Axis = .vertical,
+        startsAtEnd: Bool = false, current: Int = 0,
+        position: Binding<LevelMapCameraPosition>? = nil,
+        @ViewBuilder content: @escaping (LevelMapNodeContext<Data.Level>) -> Node
+    ) {
         self.data = data
         self.route = route
         self.axis = axis
         self.startsAtEnd = startsAtEnd
         self.current = current
         self.position = position
-        self.node = placedNode
+        self.node = content
     }
 
     private var follow: LevelMapFollow? {
@@ -832,5 +858,31 @@ extension LevelMap {
     ) where Elements.Element: Identifiable, Data == LevelMapCollection<Elements, Elements.Element.ID> {
         self.init(elements, id: \.id, route: route, axis: axis,
                   startsAtEnd: startsAtEnd, current: current, position: position, placedNode: placedNode)
+    }
+}
+
+
+extension LevelMap {
+    /// Creates context-based node content from a collection with explicit stable IDs.
+    /// Collection indices need not start at zero; the context index is always a road offset.
+    public init<Elements: RandomAccessCollection, ID: Hashable>(
+        _ elements: Elements, id: KeyPath<Elements.Element, ID>, route: LevelRoute,
+        axis: Axis = .vertical, startsAtEnd: Bool = false, current: Int = 0,
+        position: Binding<LevelMapCameraPosition>? = nil,
+        @ViewBuilder content: @escaping (LevelMapNodeContext<Elements.Element>) -> Node
+    ) where Data == LevelMapCollection<Elements, ID> {
+        self.init(LevelMapCollection(elements, id: id), route: route, axis: axis,
+                  startsAtEnd: startsAtEnd, current: current, position: position, content: content)
+    }
+
+    /// Creates context-based node content from identifiable collection elements.
+    public init<Elements: RandomAccessCollection>(
+        _ elements: Elements, route: LevelRoute, axis: Axis = .vertical,
+        startsAtEnd: Bool = false, current: Int = 0,
+        position: Binding<LevelMapCameraPosition>? = nil,
+        @ViewBuilder content: @escaping (LevelMapNodeContext<Elements.Element>) -> Node
+    ) where Elements.Element: Identifiable, Data == LevelMapCollection<Elements, Elements.Element.ID> {
+        self.init(elements, id: \.id, route: route, axis: axis,
+                  startsAtEnd: startsAtEnd, current: current, position: position, content: content)
     }
 }

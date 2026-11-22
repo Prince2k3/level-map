@@ -3,7 +3,7 @@ import CoreGraphics
 /// A road through traced points, for example from a drawing or an older level map.
 ///
 /// Unlike the other segments, a polyline keeps the proportions it was drawn with: its length
-/// along the scroll axis grows with the map's width, and ``SwiftUICore/View/levelSpacing(_:)``
+/// along the scroll axis grows with the map's width, and ``SwiftUICore/View/levelMapSpacing(_:)``
 /// does not apply to it. Levels are still spread evenly along it by arc length.
 ///
 /// The road may double back on itself (run sideways, or briefly backwards along the scroll axis).

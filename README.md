@@ -81,10 +81,10 @@ struct WorldScreen: View {
     @State private var current = 0
 
     var body: some View {
-        LevelMap(EndlessLevels(), route: .forest, startsAtEnd: true, current: current) { _, index, state in
-            Text("\(index + 1)")
+        LevelMap(EndlessLevels(), route: .forest, startsAtEnd: true, current: current) { context in
+            Text("\(context.index + 1)")
                 .frame(width: 52, height: 52)
-                .background(Circle().fill(state == .locked ? .gray : .orange))
+                .background(Circle().fill(context.state == .locked ? .gray : .orange))
         }
         .levelMapTheme(.plain)
         .levelMapAvatar { Image(systemName: "figure.walk.circle.fill").font(.largeTitle) }

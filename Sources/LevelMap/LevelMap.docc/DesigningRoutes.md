@@ -78,11 +78,11 @@ LevelRoute {
 ## Spacing
 
 Levels are 110 points apart along the scroll axis by default. Change it for the whole map with
-``SwiftUICore/View/levelSpacing(_:)``:
+``SwiftUICore/View/levelMapSpacing(_:)``:
 
 ```swift
 LevelMap(levels, route: .forest) { ... }
-    .levelSpacing(140)
+    .levelMapSpacing(140)
 ```
 
 ``Polyline`` segments are the exception: they keep the proportions they were drawn with.

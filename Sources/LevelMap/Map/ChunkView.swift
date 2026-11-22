@@ -45,7 +45,7 @@ struct ChunkView<Data: LevelMapDataSource, Node: View>: View {
     /// Animates the node states when a level unlocks.
     let unlockAnimation: Animation?
     let rotorNamespace: Namespace.ID
-    let node: (Data.Level, Int, LevelState, LevelPlacement) -> Node
+    let node: (LevelMapNodeContext<Data.Level>) -> Node
     /// Shrinks nodes while the map is zoomed in on the avatar, so they keep their size.
     var markerScale: CGFloat = 1
 
@@ -65,9 +65,10 @@ struct ChunkView<Data: LevelMapDataSource, Node: View>: View {
                 let index = entry.index
                 if let sample = layout.localSample(ofLevel: index, in: chunk) {
                     let state = LevelState(level: index, current: current)
-                    node(data.level(at: index), index, state,
-                         LevelPlacement(sample: sample, crossSize: frame.crossSize, axis: frame.axis, mirrored: mirrored,
-                                        layoutDirection: layoutDirection))
+                    node(LevelMapNodeContext(level: data.level(at: index), index: index, state: state,
+                                             placement: LevelPlacement(sample: sample, crossSize: frame.crossSize,
+                                                                       axis: frame.axis, mirrored: mirrored,
+                                                                       layoutDirection: layoutDirection)))
                         .modifier(MapDefaultAnimation(animation: unlockAnimation, value: state))
                         .accessibilityElement(children: .combine)
                         .accessibilityValue(state.accessibilityDescription)

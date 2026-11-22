@@ -25,12 +25,13 @@ struct TrailMap: View {
 
     var body: some View {
         LevelMap(Self.stops, route: .serpentine(amplitude: 0.34), startsAtEnd: startsAtEnd,
-                 current: current, position: $position) { _, index, state, placement in
-            TrailPin(level: index, state: state, labelOnLeading: placement.side == .trailing,
-                     isGoal: index == legEnd)
+                 current: current, position: $position) { context in
+            TrailPin(level: context.index, state: context.state,
+                     labelOnLeading: context.placement.side == .trailing,
+                     isGoal: context.index == legEnd)
         }
         .levelMapTheme(.trail)
-        .levelSpacing(130)
+        .levelMapSpacing(130)
         .levelMapEdgeInset(60)
         .levelMapLayer(.belowRoad) { map in
             TrailTerrain(map: map).equatable()

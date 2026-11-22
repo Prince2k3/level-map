@@ -18,7 +18,7 @@ extension LevelRoute {
 extension View {
     /// Spacing and themes for `LevelRoute.tidewater`.
     func tidewaterLook() -> some View {
-        levelSpacing(110)
+        levelMapSpacing(110)
             .levelMapChapters(every: 20) { chapter in
                 [LevelMapTheme.meadow, .desert, .snow][chapter % 3]
             }
@@ -26,7 +26,7 @@ extension View {
 }
 
 // Usage:
-// LevelMap(levels, route: .tidewater, startsAtEnd: true) { level, index, state in
+// LevelMap(levels, route: .tidewater, startsAtEnd: true) { context in
 //     ...
 // }
 // .tidewaterLook()

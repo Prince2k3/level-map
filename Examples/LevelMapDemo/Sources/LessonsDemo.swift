@@ -19,16 +19,16 @@ struct LessonsMap: View {
     }
 
     var body: some View {
-        LevelMap(EndlessLevels(), route: .lessons, current: Self.slot(ofLesson: completed)) { _, index, state, placement in
-            if index % Self.slotsPerUnit == 0 {
+        LevelMap(EndlessLevels(), route: .lessons, current: Self.slot(ofLesson: completed)) { context in
+            if context.index % Self.slotsPerUnit == 0 {
                 // The banner is drawn in a layer, across the map.
                 Color.clear.frame(width: 1, height: 1)
             } else {
-                LessonButton(index: index, state: state)
+                LessonButton(index: context.index, state: context.state)
             }
         }
         .levelMapTheme(.lessons)
-        .levelSpacing(112)
+        .levelMapSpacing(112)
         .levelMapEdgeInset(48)
         .levelMapLayer(.belowRoad) { map in
             LessonIllustrations(map: map, currentUnit: Self.slot(ofLesson: completed) / Self.slotsPerUnit)

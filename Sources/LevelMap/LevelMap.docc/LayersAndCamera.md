@@ -43,17 +43,17 @@ that runs bottom-up, one as tall as several chunks is cut off at the edge of wha
 
 ## Place labels by side
 
-``LevelMap/LevelMap/init(_:route:axis:startsAtEnd:current:placedNode:)`` passes each node a
+The node content builder receives a ``LevelMapNodeContext``. Its `placement` is a
 ``LevelPlacement``: how far across the map the level is, and which way the road runs through it.
 Put a label on the side away from the edge:
 
 ```swift
-LevelMap(stops, route: .serpentine(), current: arrived) { stop, index, state, placement in
-    StopPin(state: state)
-        .overlay(alignment: placement.side == .trailing ? .trailing : .leading) {
-            Text(stop.name)
+LevelMap(stops, route: .serpentine(), current: arrived) { context in
+    StopPin(state: context.state)
+        .overlay(alignment: context.placement.side == .trailing ? .trailing : .leading) {
+            Text(context.level.name)
                 .fixedSize()
-                .offset(x: placement.side == .trailing ? -40 : 40)
+                .offset(x: context.placement.side == .trailing ? -40 : 40)
         }
 }
 ```
@@ -72,12 +72,12 @@ the top half and `.trailing` the bottom half; language direction does not swap t
 Nodes and layer geometry receive `layoutDirection` from the environment, including an override:
 
 ```swift
-LevelMap(stops, route: .serpentine()) { stop, index, state, placement in
-    StopPin(stop: stop, state: state)
-        .overlay(alignment: placement.side == .leading ? .leading : .trailing) {
-            Text(stop.name)
+LevelMap(stops, route: .serpentine()) { context in
+    StopPin(stop: context.level, state: context.state)
+        .overlay(alignment: context.placement.side == .leading ? .leading : .trailing) {
+            Text(context.level.name)
                 .fixedSize()
-                .offset(x: placement.side == .leading ? 40 : -40)
+                .offset(x: context.placement.side == .leading ? 40 : -40)
         }
 }
 .environment(\.layoutDirection, .rightToLeft)
@@ -90,6 +90,29 @@ physical fraction of 0.2 lies on `.trailing` in a vertical RTL map. The original
 `LevelPlacement(crossFraction:heading:)` initializer still uses logical coordinates and defaults
 to a vertical left-to-right context. `.inside` and `.outside` marks stay towards the centre
 and the nearer edge respectively in either reading direction.
+
+## API naming and compatibility
+
+Use `.levelMapSpacing(130)` alongside the other `levelMap…` modifiers. The original
+`.levelSpacing(130)` remains an alias with the same defaults and modifier-order behavior.
+
+Prefer a single context argument for node content:
+
+```swift
+LevelMap(stops, route: .serpentine()) { context in
+    StopPin(stop: context.level, state: context.state)
+}
+.levelMapSpacing(130)
+```
+
+The `content:` builder works with custom data sources, arrays, ranges, endless levels,
+and collection initializers with `id:` or `Identifiable` elements. It also accepts the camera
+binding. `context.index` is always a zero-based road offset; use `context.level` for the model.
+`context.placement` carries the map's axis and layout direction.
+
+Existing `node:` builders with three arguments and `placedNode:` builders with four arguments
+remain supported, including trailing-closure syntax. They adapt to the same context internally.
+No migration or deprecation warnings are required for existing callers.
 
 ## Style the road
 
@@ -214,8 +237,8 @@ and is kept inside the map; ``LevelMapMarkPlacement/inside(spacing:)`` takes the
 For changing collections, pass stable IDs, or use `Identifiable` elements:
 
 ```swift
-LevelMap(stops, id: \.id, route: .serpentine(), current: arrived) { stop, index, state in
-    StopPin(stop: stop, state: state)
+LevelMap(stops, id: \.id, route: .serpentine(), current: arrived) { context in
+    StopPin(stop: context.level, state: context.state)
 }
 ```
 
@@ -250,8 +273,8 @@ Keep camera ownership separate from the player's reached level:
 
 var body: some View {
     LevelMap(stops, id: \.id, route: .serpentine(), current: reachedLevel,
-             position: $position) { stop, index, state in
-        StopPin(stop: stop, state: state)
+             position: $position) { context in
+        StopPin(stop: context.level, state: context.state)
     }
     .levelMapAvatar { Walker() }
     .levelMapProgress(toNext: walked)

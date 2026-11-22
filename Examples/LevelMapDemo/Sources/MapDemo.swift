@@ -92,7 +92,7 @@ struct MapDemo: View {
                     // Exactly what the editor's usage comment says to write.
                     map.tidewaterLook()
                 } else {
-                    themed(map.levelSpacing(horizontal ? 90 : 110))
+                    themed(map.levelMapSpacing(horizontal ? 90 : 110))
                 }
             }
             // Room for the avatar, which stands above its level's node, at every edge of the map.
@@ -132,14 +132,14 @@ struct MapDemo: View {
     private var map: some View {
         LevelMap(EndlessLevels(), route: sample.route,
                  axis: horizontal ? .horizontal : .vertical,
-                 startsAtEnd: startsAtEnd, current: current) { [probe] _, index, state in
-            LevelNode(number: index + 1, state: state, size: sample.nodeSize)
+                 startsAtEnd: startsAtEnd, current: current) { [probe] context in
+            LevelNode(number: context.index + 1, state: context.state, size: sample.nodeSize)
                 .background {
                     if Self.probing {
                         Color.clear.onGeometryChange(for: CGPoint.self) { proxy in
                             let frame = proxy.frame(in: .global)
                             return CGPoint(x: frame.midX, y: frame.midY)
-                        } action: { probe.nodes[index] = $0 }
+                        } action: { probe.nodes[context.index] = $0 }
                     }
                 }
         }

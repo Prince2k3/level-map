@@ -26,8 +26,8 @@ Two things limit the number of levels: your data and your route.
 
 ```swift
 LevelMap(EndlessLevels { index in Level(number: index + 1) }, route: .serpentine(),
-         startsAtEnd: true, current: progress) { level, index, state in
-    LevelNode(level: level, state: state)
+         startsAtEnd: true, current: progress) { context in
+    LevelNode(level: context.level, state: context.state)
 }
 ```
 

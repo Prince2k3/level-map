@@ -32,8 +32,8 @@ struct WorldScreen: View {
     @State private var current = 0
 
     var body: some View {
-        LevelMap(0..<100, route: .serpentine(), current: current) { level, index, state in
-            LevelNode(number: index + 1, state: state)
+        LevelMap(0..<100, route: .serpentine(), current: current) { context in
+            LevelNode(number: context.index + 1, state: context.state)
         }
     }
 }
@@ -45,8 +45,10 @@ struct WorldScreen: View {
   ``LevelRoute/zigzag(amplitude:levelsPerWave:)``, ``LevelRoute/straight`` and
   ``LevelRoute/spline(_:levelsPerRepeat:)`` are ready to use; <doc:DesigningRoutes> shows how
   to build your own.
-- **Node.** Your view for one level. It receives the level, its index and its ``LevelState``:
-  `.completed`, `.current` or `.locked`.
+- **Node.** Your view for one level. It receives a ``LevelMapNodeContext`` with the model in
+  `level`, a zero-based road `index`, its `state` (`.completed`, `.current` or `.locked`), and
+  `placement` for side, heading and layout direction. The original three- and four-argument
+  builders are still supported.
 
 The map scrolls to `current` when it first appears and again whenever `current` changes.
 
@@ -99,7 +101,7 @@ Modifiers set the spacing between levels, the theme and the player's avatar:
 
 ```swift
 LevelMap(levels, route: .serpentine(), startsAtEnd: true, current: current) { ... }
-    .levelSpacing(120)
+    .levelMapSpacing(120)
     .levelMapTheme(.meadow)
     .levelMapAvatar {
         Image(systemName: "figure.walk.circle.fill")
@@ -132,8 +134,8 @@ struct WalkScreen: View {
     let legLength: Double    // The distance from level `current` to the next one.
 
     var body: some View {
-        LevelMap(0..<20, route: .serpentine(), startsAtEnd: true, current: current) { _, index, state in
-            LevelNode(number: index + 1, state: state)
+        LevelMap(0..<20, route: .serpentine(), startsAtEnd: true, current: current) { context in
+            LevelNode(number: context.index + 1, state: context.state)
         }
         .levelMapProgress(toNext: 1 - metresLeft / legLength)
         .levelMapAvatar { Image(systemName: "figure.walk.circle.fill").font(.largeTitle) }
