@@ -96,7 +96,8 @@ struct MarkLayout: Layout {
 /// Where a mark's road point is, and which way across the map it is moved off it.
 struct MarkSpot: Sendable {
     var point: CGPoint = .zero
-    /// -1 towards the leading (or top) edge, 1 towards the trailing (or bottom) edge, 0 on the road.
+    /// A logical direction: -1 towards leading (or top), 1 towards trailing (or bottom).
+    /// SwiftUI mirrors horizontal placement in RTL; don't negate this direction again.
     var direction: CGFloat = 0
     var spacing: CGFloat = 0
 }

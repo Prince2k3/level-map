@@ -20,6 +20,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     private let position: Binding<LevelMapCameraPosition>?
     private let node: (Data.Level, Int, LevelState, LevelPlacement) -> Node
 
+    @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.levelSpacing) private var spacing
     @Environment(\.levelMapEdgeInset) private var edgeInset
     @Environment(\.levelMapChunkSize) private var chunkSize
@@ -522,7 +523,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         let geometry = LevelMapGeometry(size: size, axis: axis, layout: layout,
                                         levels: layout.chunk(low).levels.lowerBound..<layout.chunk(high).levels.upperBound,
                                         originAlong: along(union) - alongOffset, mirrored: startsAtEnd,
-                                        zoom: layerZoom)
+                                        zoom: layerZoom, layoutDirection: layoutDirection)
         return (geometry, union.origin)
     }
 

@@ -15,7 +15,7 @@ public enum LevelMapLayerPlacement: Sendable, Hashable {
 ///
 /// A layer covers the stretch of map that is laid out at the moment: ``levels`` are the levels in
 /// it, and ``size`` is its size. Points are in the layer's own coordinates, with the origin at its
-/// top-leading corner the right way up, even on maps that run bottom-up.
+/// top-leading corner, with positive x towards trailing, the right way up, even on maps that run bottom-up.
 ///
 /// Positions are given in levels, and may fall between them: `3.5` is halfway along the road from
 /// level 3 to level 4, and `-0.5` is before the first level.
@@ -23,6 +23,8 @@ public struct LevelMapGeometry: Sendable {
     /// The size of the layer.
     public let size: CGSize
     public let axis: Axis
+    /// The layout direction used by the map and its logical drawing coordinates.
+    public let layoutDirection: LayoutDirection
     /// How many levels the map shows, or `nil` for an endless map.
     public let levelCount: Int?
     /// The levels inside the layer. Draw what belongs to these; the layer is rebuilt as the map scrolls.
@@ -38,9 +40,10 @@ public struct LevelMapGeometry: Sendable {
     let road: RoadDistanceIndex
 
     init(size: CGSize, axis: Axis, layout: ChunkLayout, levels: Range<Int>, originAlong: CGFloat,
-         mirrored: Bool, zoom: CGFloat) {
+         mirrored: Bool, zoom: CGFloat, layoutDirection: LayoutDirection = .leftToRight) {
         self.size = size
         self.axis = axis
+        self.layoutDirection = layoutDirection
         self.layout = layout
         levelCount = layout.levelCount
         self.levels = levels
@@ -61,7 +64,8 @@ public struct LevelMapGeometry: Sendable {
         sample(atLevel: level).map { location(of: $0.position) }
     }
 
-    /// The direction the road runs at `level`, towards higher levels, as drawn on screen.
+    /// The direction towards higher levels in the layer's logical drawing coordinates.
+    /// SwiftUI mirrors the drawing horizontally in right-to-left layouts.
     public func heading(atLevel level: Double) -> Angle? {
         sample(atLevel: level).map { LevelPlacement.screenAngle(of: $0.tangent, axis: axis, mirrored: mirrored) }
     }
@@ -94,7 +98,8 @@ public struct LevelMapGeometry: Sendable {
     // MARK: Conversion
 
     func placement(of sample: RouteSample) -> LevelPlacement {
-        LevelPlacement(sample: sample, crossSize: layout.road.context.width, axis: axis, mirrored: mirrored)
+        LevelPlacement(sample: sample, crossSize: layout.road.context.width, axis: axis, mirrored: mirrored,
+                       layoutDirection: layoutDirection)
     }
 
     private func sample(atLevel level: Double) -> RouteSample? {
@@ -140,30 +145,71 @@ public struct LevelMapGeometry: Sendable {
 public struct LevelPlacement: Sendable, Hashable {
     /// Which half of the map a level is in.
     public enum Side: Sendable, Hashable {
-        /// The left half; the top half on horizontal maps.
+        /// The leading half: left in left-to-right layouts, right in right-to-left layouts.
+        /// For horizontal maps, the top half of the cross axis (unchanged by language direction).
         case leading
-        /// The right half; the bottom half on horizontal maps.
+        /// The trailing half: right in left-to-right layouts, left in right-to-left layouts.
+        /// For horizontal maps, the bottom half of the cross axis (unchanged by language direction).
         case trailing
     }
 
-    /// How far across the map the level is: 0 at the leading (or top) edge, 1 at the trailing
-    /// (or bottom) edge.
+    /// How far across the map the level is in logical drawing coordinates: 0 at the leading
+    /// (or top) edge, 1 at the trailing (or bottom) edge. SwiftUI mirrors x when drawing RTL.
+    /// Use `physicalCrossFraction` when working with physical screen coordinates.
     public let crossFraction: CGFloat
-    /// The direction the road runs through the level, towards the next one, as drawn on screen.
+    /// The direction towards the next level in SwiftUI's logical drawing coordinates.
+    /// Use with `rotationEffect`; SwiftUI mirrors that drawing horizontally in RTL.
     public let heading: Angle
 
-    public init(crossFraction: CGFloat, heading: Angle) {
+    /// The scroll axis. On a horizontal map the cross axis runs from top to bottom.
+    public let axis: Axis
+    /// The direction of the map's logical horizontal coordinates.
+    public let layoutDirection: LayoutDirection
+
+    /// Creates placement in logical map coordinates. Existing calls default to a vertical LTR map.
+    public init(crossFraction: CGFloat, heading: Angle, axis: Axis = .vertical,
+                layoutDirection: LayoutDirection = .leftToRight) {
         self.crossFraction = crossFraction
         self.heading = heading
+        self.axis = axis
+        self.layoutDirection = layoutDirection
+    }
+
+    /// Creates placement from physical screen coordinates: left-to-right for a vertical map,
+    /// top-to-bottom for a horizontal map. The heading is still in logical drawing coordinates.
+    public init(physicalCrossFraction: CGFloat, heading: Angle, axis: Axis = .vertical,
+                layoutDirection: LayoutDirection = .leftToRight) {
+        let logical = axis == .vertical && layoutDirection == .rightToLeft
+            ? 1 - physicalCrossFraction : physicalCrossFraction
+        self.init(crossFraction: logical, heading: heading, axis: axis, layoutDirection: layoutDirection)
+    }
+
+    /// The physical fraction across the map: 0 at left (or top), 1 at right (or bottom).
+    public var physicalCrossFraction: CGFloat {
+        axis == .vertical && layoutDirection == .rightToLeft ? 1 - crossFraction : crossFraction
+    }
+
+    /// A physical screen edge, independent of the language's reading direction.
+    public enum PhysicalSide: Sendable, Hashable {
+        case left, right, top, bottom
+    }
+
+    /// The physical half containing this placement. The centre belongs to the logical leading half.
+    public var physicalSide: PhysicalSide {
+        if axis == .horizontal { return side == .leading ? .top : .bottom }
+        let leadingIsLeft = layoutDirection == .leftToRight
+        return (side == .leading) == leadingIsLeft ? .left : .right
     }
 
     /// The half of the map the level is in. A label put on the other side, towards the middle,
     /// has the most room and stays clear of the edge.
     public var side: Side { crossFraction > 0.5 ? .trailing : .leading }
 
-    init(sample: RouteSample, crossSize: CGFloat, axis: Axis, mirrored: Bool) {
+    init(sample: RouteSample, crossSize: CGFloat, axis: Axis, mirrored: Bool,
+         layoutDirection: LayoutDirection = .leftToRight) {
         self.init(crossFraction: crossSize > 0 ? sample.position.x / crossSize : 0.5,
-                  heading: Self.screenAngle(of: sample.tangent, axis: axis, mirrored: mirrored))
+                  heading: Self.screenAngle(of: sample.tangent, axis: axis, mirrored: mirrored),
+                  axis: axis, layoutDirection: layoutDirection)
     }
 
     /// A route tangent (`dy` along the scroll axis) as an angle on screen.

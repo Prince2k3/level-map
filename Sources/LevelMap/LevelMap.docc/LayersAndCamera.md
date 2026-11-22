@@ -58,6 +58,39 @@ LevelMap(stops, route: .serpentine(), current: arrived) { stop, index, state, pl
 }
 ```
 
+### Layout direction
+
+Placement uses SwiftUI's logical coordinates. On a vertical map, `side == .leading` means
+left in a left-to-right layout and right in a right-to-left layout. `crossFraction` remains
+zero at leading and one at trailing. SwiftUI mirrors both positioned nodes and path layers;
+do not negate their x coordinates or offsets a second time.
+
+On a horizontal map, the cross axis is vertical. For compatibility, `.leading` identifies
+the top half and `.trailing` the bottom half; language direction does not swap them.
+`startsAtEnd` reverses travel along the road, not these cross-axis sides.
+
+Nodes and layer geometry receive `layoutDirection` from the environment, including an override:
+
+```swift
+LevelMap(stops, route: .serpentine()) { stop, index, state, placement in
+    StopPin(stop: stop, state: state)
+        .overlay(alignment: placement.side == .leading ? .leading : .trailing) {
+            Text(stop.name)
+                .fixedSize()
+                .offset(x: placement.side == .leading ? 40 : -40)
+        }
+}
+.environment(\.layoutDirection, .rightToLeft)
+```
+
+Use `physicalSide` (`.left`, `.right`, `.top`, `.bottom`) or `physicalCrossFraction` when
+integrating with physical screen coordinates. Construct a placement from such coordinates
+with `LevelPlacement(physicalCrossFraction:heading:axis:layoutDirection:)`. For example, a
+physical fraction of 0.2 lies on `.trailing` in a vertical RTL map. The original
+`LevelPlacement(crossFraction:heading:)` initializer still uses logical coordinates and defaults
+to a vertical left-to-right context. `.inside` and `.outside` marks stay towards the centre
+and the nearer edge respectively in either reading direction.
+
 ## Style the road
 
 ``RoadStyle`` can draw a dotted or dashed road that turns solid as it is completed, with a

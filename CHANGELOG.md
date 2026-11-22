@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Placement and layer geometry now carry the map's layout direction. Leading/trailing remain
+  logical SwiftUI sides, with explicit `physicalSide`, `physicalCrossFraction` and a physical-coordinate
+  initializer for screen-coordinate integrations. Horizontal-map top/bottom behavior and existing
+  initializer calls are preserved. Added rendered RTL regression tests for nodes, roads and marks.
+
 - Added `LevelMapCameraPosition` and a `position:` binding on all map initializers for automatic,
   fractional-level and avatar-follow framing. User scrolling writes back camera ownership.
 - Bound framing takes precedence over legacy following; existing unbound camera APIs are unchanged.

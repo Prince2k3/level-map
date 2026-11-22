@@ -32,6 +32,7 @@ struct ChunkFrame {
 /// chunk. Each chunk draws over the one before it, so a road drawn here would cover the nodes of
 /// the previous chunk wherever the road crosses the seam.
 struct ChunkView<Data: LevelMapDataSource, Node: View>: View {
+    @Environment(\.layoutDirection) private var layoutDirection
     let layout: ChunkLayout
     let chunk: ChunkLayout.Chunk
     let scene: ChunkScene
@@ -65,7 +66,8 @@ struct ChunkView<Data: LevelMapDataSource, Node: View>: View {
                 if let sample = layout.localSample(ofLevel: index, in: chunk) {
                     let state = LevelState(level: index, current: current)
                     node(data.level(at: index), index, state,
-                         LevelPlacement(sample: sample, crossSize: frame.crossSize, axis: frame.axis, mirrored: mirrored))
+                         LevelPlacement(sample: sample, crossSize: frame.crossSize, axis: frame.axis, mirrored: mirrored,
+                                        layoutDirection: layoutDirection))
                         .modifier(MapDefaultAnimation(animation: unlockAnimation, value: state))
                         .accessibilityElement(children: .combine)
                         .accessibilityValue(state.accessibilityDescription)
