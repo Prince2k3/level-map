@@ -41,6 +41,11 @@ public struct LevelMapCameraPosition: Equatable, Sendable {
                                              anchor: normalized(anchor), scalesMarkers: scalesMarkers)))
     }
 
+    @MainActor static func userDidScroll(_ binding: Binding<Self>?, isFollowing: Bool) {
+        guard let binding, !isFollowing, !binding.wrappedValue.positionedByUser else { return }
+        binding.wrappedValue = .userPositioned
+    }
+
     static var userPositioned: Self { Self(framing: .user) }
 
     /// Whether the camera continuously tracks the player's avatar.
@@ -72,21 +77,5 @@ public struct LevelMapCameraPosition: Equatable, Sendable {
     private static func normalized(_ point: UnitPoint) -> UnitPoint {
         func clamp(_ value: CGFloat) -> CGFloat { value.isFinite ? min(max(value, 0), 1) : 0.5 }
         return UnitPoint(x: clamp(point.x), y: clamp(point.y))
-    }
-}
-
-/// Observe native scrolling when available, keeping an iOS 17-compatible drag fallback.
-struct CameraUserInteraction: ViewModifier {
-    let action: @MainActor () -> Void
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(iOS 18, macOS 15, visionOS 2, *) {
-            content.onScrollPhaseChange { _, phase in
-                if phase == .interacting || phase == .decelerating { action() }
-            }
-        } else {
-            content.simultaneousGesture(DragGesture(minimumDistance: 10).onChanged { _ in action() })
-        }
     }
 }

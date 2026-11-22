@@ -261,6 +261,8 @@ withTransaction(transaction) {
 }
 ```
 
+`disablesAnimations` prevents the map from inserting a fallback animation. If the transaction
+also supplies an explicit animation, that animation is preserved, matching SwiftUI's convention.
 A plain transaction with a nil animation still allows the map's compatibility defaults.
 Reduce Motion suppresses map-generated animations.
 
@@ -289,8 +291,10 @@ to choose the transition; disabled transactions and Reduce Motion are respected.
 Manual scrolling writes a position with `positionedByUser == true`. In that state, player
 updates no longer move the camera. The binding reports ownership, not a measured viewport:
 `level` is only populated for explicit level requests. Following locks manual scrolling,
-just as the existing follow modifier does. On iOS 17/macOS 14/visionOS 1, manual ownership
-is detected from dragging; newer systems use native scroll phases as well.
+just as the existing follow modifier does. iOS 18 and newer systems use native scroll phases.
+On macOS 14, wheel input is observed without consuming events; visionOS 1 retains drag detection.
+Accessibility scroll actions page the map and release automatic camera ownership on all supported
+platforms. macOS 14 and visionOS 1 remain supported; iOS now requires version 18.
 
 When `position` is supplied, it takes precedence over `levelMapFollowsAvatar`. The existing
 recenter button and recenter trigger assign `.automatic` to the binding. Focus offsets and
@@ -301,3 +305,14 @@ player progress and is never changed by the camera.
 
 Omit `position` to retain the existing behavior of all camera modifiers. Collection and
 placed-node initializers accept the binding too.
+
+### Repeated content-margin modifiers
+
+Margins follow SwiftUI environment precedence: the modifier closest to the map wins for an
+overlapping edge. Different edges accumulate. Existing behavior is unchanged:
+
+```swift
+map.levelMapContentMargins(.top, 10)
+   .levelMapContentMargins(.top, 20)    // top remains 10
+   .levelMapContentMargins(.bottom, 30) // bottom is 30
+```

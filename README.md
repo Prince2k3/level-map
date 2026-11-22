@@ -48,7 +48,7 @@ the layers change.
 - **A visual editor.** `LevelMapEditor` lets you drag the road on a live map, then export it as
   Swift or JSON.
 
-iOS 17, macOS 14 and visionOS 1. Swift 6.
+iOS 18, macOS 14 and visionOS 1. Swift 6.
 
 ## Installation
 
@@ -129,7 +129,7 @@ The demo accepts these launch arguments:
 `LevelMapDemoUITests` drives the demo and checks the map while the avatar walks live: it moves
 smoothly towards the next level, Stop freezes it, arriving makes the next level current without
 running back, it keeps walking while you scroll away, and it works on every route, horizontally
-and top-down. Run them on any iOS 17+ simulator:
+and top-down. Run them on any iOS 18+ simulator:
 
 ```bash
 cd Examples/LevelMapDemo && xcodegen && xcodebuild test -project LevelMapDemo.xcodeproj -scheme LevelMapDemo -destination "platform=iOS Simulator,name=iPhone 17"

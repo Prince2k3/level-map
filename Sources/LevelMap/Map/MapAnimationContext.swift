@@ -7,10 +7,10 @@ final class MapAnimationContext {
 
     func resolved(fallback: Animation?, reduceMotion: Bool) -> Transaction {
         var result = transaction
-        if reduceMotion || result.disablesAnimations {
+        if reduceMotion {
             result.animation = nil
             result.disablesAnimations = true
-        } else if result.animation == nil {
+        } else if !result.disablesAnimations, result.animation == nil {
             result.animation = fallback
         }
         return result

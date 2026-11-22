@@ -39,7 +39,7 @@ struct APICompatibilityTests {
         #expect(context.resolved(fallback: .spring(), reduceMotion: false).animation == .linear(duration: 2))
         context.transaction.disablesAnimations = true
         let disabled = context.resolved(fallback: .spring(), reduceMotion: false)
-        #expect(disabled.animation == nil)
+        #expect(disabled.animation == .linear(duration: 2))
         #expect(disabled.disablesAnimations)
         context.transaction = Transaction()
         #expect(context.resolved(fallback: .linear(duration: 1), reduceMotion: false).animation == .linear(duration: 1))

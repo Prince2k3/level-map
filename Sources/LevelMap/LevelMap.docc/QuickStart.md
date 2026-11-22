@@ -18,7 +18,7 @@ targets: [
 ]
 ```
 
-LevelMap needs iOS 17, macOS 14 or visionOS 1.
+LevelMap needs iOS 18, macOS 14 or visionOS 1.
 
 ## Show a map
 

@@ -225,7 +225,8 @@ extension View {
     /// ``levelMapFollowsAvatar(_:zoom:anchor:scalesMarkers:)`` holds the avatar at a fraction of
     /// the whole map, ignoring the margins for the same reason. Pick an anchor clear of the panel.
     ///
-    /// Call it again to set other edges; later calls win for the edges they name.
+    /// Call it again to set other edges. For overlapping edges, the modifier closest to the map
+    /// wins, following SwiftUI environment precedence.
     public func levelMapContentMargins(_ edges: Edge.Set = .all, _ length: CGFloat) -> some View {
         transformEnvironment(\.levelMapContentMargins) { margins in
             let length = max(length, 0)

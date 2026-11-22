@@ -57,6 +57,7 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
     /// Whether the avatar was last seen on screen, so a walk only carries the map along while the
     /// player is watching it rather than after they have scrolled away.
     @State private var sighting = AvatarSighting()
+    @State private var scrollObservation = CameraScrollObservation()
     /// The same as `sighting`, but kept as state for the recenter button, so only a map that
     /// shows one is redrawn when the avatar comes and goes.
     @State private var avatarInView = true
@@ -253,6 +254,12 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                 // which changes on every scroll frame, and that would rebuild every layer with it.
                 .overlayPreferenceValue(ChunkBoundsKey.self) { bounds in
                     GeometryReader { proxy in
+                        Color.clear
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                            .onChange(of: scrollSnapshot(bounds: bounds, proxy: proxy, viewport: viewport), initial: true) { _, snapshot in
+                                scrollObservation.snapshot = snapshot
+                            }
                         VisibilityReporter(isVisible: avatarIsVisible(bounds: bounds, proxy: proxy, layout: layout,
                                                                       target: target, viewport: viewport)) { visible in
                             sighting.isVisible = visible
@@ -293,10 +300,11 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                 .padding(axis == .vertical ? .bottom : .trailing, scrollPadding.end)
             }
             .scrollDisabled(follow != nil)
-            .modifier(CameraUserInteraction {
-                guard let position, follow == nil, !position.wrappedValue.positionedByUser else { return }
-                position.wrappedValue = .userPositioned
-            })
+            .modifier(CameraUserInteraction(action: {
+                LevelMapCameraPosition.userDidScroll(position, isFollowing: follow != nil)
+            }, accessibilityScroll: { edge in
+                pageForAccessibility(edge, reader: reader, chunkCount: chunkCount, viewport: viewport)
+            }))
             // The scroll view's own coordinates, unmirrored, for finding the avatar on screen.
             .coordinateSpace(.named(Self.viewportSpace))
             // Bottom-up maps mirror the whole scroll view, so content grows away from level 0
@@ -433,6 +441,43 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
         .transaction { transaction in
             animationContext.transaction = transaction
         }
+    }
+
+    private func scrollSnapshot(bounds: [Int: Anchor<CGRect>], proxy: GeometryProxy,
+                                viewport: CGFloat) -> CameraScrollSnapshot? {
+        let frame = proxy.frame(in: .named(Self.viewportSpace))
+        let offset = axis == .vertical ? frame.minY : frame.minX
+        return bounds.compactMap { index, anchor in
+            let rect = proxy[anchor]
+            return CameraScrollSnapshot(index: index,
+                                        origin: (axis == .vertical ? rect.minY : rect.minX) + offset,
+                                        extent: axis == .vertical ? rect.height : rect.width)
+        }.min { abs($0.origin + $0.extent / 2 - viewport / 2)
+            < abs($1.origin + $1.extent / 2 - viewport / 2) }
+    }
+
+    private func pageForAccessibility(_ edge: Edge, reader: ScrollViewProxy,
+                                      chunkCount: Int, viewport: CGFloat) {
+        guard follow == nil, let snapshot = scrollObservation.snapshot, chunkCount > 0 else { return }
+        let forward: Bool
+        switch (axis, edge) {
+        case (.vertical, .bottom), (.horizontal, .trailing): forward = true
+        case (.vertical, .top), (.horizontal, .leading): forward = false
+        default: return
+        }
+        let direction: CGFloat = (forward != startsAtEnd) ? 1 : -1
+        LevelMapCameraPosition.userDidScroll(position, isFollowing: false)
+        let move = {
+            if let anchor = snapshot.pageAnchor(direction: direction, viewport: viewport) {
+                reader.scrollTo(MapItemID.chunk(snapshot.index),
+                                anchor: axis == .vertical ? UnitPoint(x: 0.5, y: anchor)
+                                                          : UnitPoint(x: anchor, y: 0.5))
+            } else {
+                let next = min(max(snapshot.index + (direction > 0 ? 1 : -1), 0), chunkCount - 1)
+                reader.scrollTo(MapItemID.chunk(next), anchor: .center)
+            }
+        }
+        withTransaction(animationContext.resolved(fallback: .smooth, reduceMotion: reduceMotion), move)
     }
 
     /// The camera target is also included in endless paging before scrolling to it.

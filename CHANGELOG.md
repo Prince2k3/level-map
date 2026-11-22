@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Raised the minimum iOS version to 18 in the package and demo. macOS 14 and visionOS 1 remain supported.
+- Explicit transaction animations are preserved when `disablesAnimations` is true; only fallback
+  insertion is suppressed. Reduce Motion still suppresses map-generated movement.
+- Camera ownership now handles accessibility paging on all supported platforms and wheel input on
+  macOS 14, in addition to native scroll phases on newer systems.
+- Corrected content-margin override documentation: the modifier closest to the map wins for an
+  overlapping edge. Existing modifier behavior is unchanged. Added audit regression coverage.
+
 - Added `LevelMapNodeContext` and a single-argument `content:` node builder for all data-source
   and collection initializers. Existing three-argument `node:` and four-argument `placedNode:`
   builders adapt to the same context and remain source-compatible.
