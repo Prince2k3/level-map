@@ -341,7 +341,17 @@ public struct LevelMap<Data: LevelMapDataSource, Node: View>: View {
                 applyPosition(reader, layout: layout, size: size, animation: nil)
             }
             .onChange(of: layout.levelCount) {
-                applyPosition(reader, layout: layout, size: size, animation: nil)
+                // Paging or extending a finite trail must not interrupt a progress glide with
+                // an unanimated camera reset. User-owned framing is preserved by applyPosition.
+                applyPosition(reader, layout: layout, size: size, animation: reduceMotion ? nil : .smooth(duration: 0.6))
+            }
+            .onChange(of: contentMargins) {
+                // Insets also pad the scroll content. Reconcile the camera when a panel or safe
+                // area changes, otherwise the road moves but the follow transform stays stale.
+                applyPosition(reader, layout: layout, size: size, animation: reduceMotion ? nil : .smooth(duration: 0.6))
+            }
+            .onChange(of: spacing) {
+                applyPosition(reader, layout: layout, size: size, animation: reduceMotion ? nil : .smooth(duration: 0.6))
             }
         }
         .transaction { transaction in
