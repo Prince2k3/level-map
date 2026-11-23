@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-11-22)
 
 ### Breaking pre-release cleanup
 
@@ -22,6 +22,8 @@
   insertion. Camera input includes accessibility paging and macOS 14 wheel observation.
 - Content-margin documentation matches environment precedence. Very large negative geometry
   positions clamp safely to the road start rather than trapping during integer conversion.
+- The camera eases to its new framing when the level count, content margins or spacing change,
+  instead of jumping, so paging or extending a trail doesn't interrupt a progress glide.
 - Minimum iOS version is 18; macOS 14 and visionOS 1 remain supported.
 
 ## 0.3.0 (2026-11-21)
