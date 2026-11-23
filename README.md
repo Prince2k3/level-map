@@ -52,14 +52,11 @@ iOS 18, macOS 14 and visionOS 1. Swift 6.
 
 ## Installation
 
-This API cleanup is unreleased. Add this checkout as a local package in Xcode, or reference
-its path in your app's `Package.swift` (adjust the path to your checkout):
+Add the package in Xcode with **File › Add Package Dependencies**, or in `Package.swift`:
 
 ```swift
-.package(path: "../level-map"),
+.package(url: "https://github.com/Prince2k3/level-map.git", from: "0.4.0"),
 ```
-
-Earlier tags contain the pre-cleanup API and do not match these examples.
 
 Then add the `LevelMap` product to your target. If you want the editor, add `LevelMapEditor` to a
 debug-only target or screen.
@@ -95,13 +92,61 @@ struct WorldScreen: View {
 }
 ```
 
-## Pre-release API cleanup
+The content builder receives a `LevelMapNodeContext`: the level's model (`level`), its position
+on the road (`index`), its `state` (completed, current or locked) and its `placement` (the side
+of the road it sits on, its heading and the layout direction).
 
-Node builders now take one `LevelMapNodeContext`. Use `.levelMapSpacing` and a
-`LevelMapCameraPosition` binding for camera control. The superseded multi-argument builders,
-spacing alias, and follow/recenter-trigger/focus-offset modifiers have been removed. See the
-DocC guide “Moving to the release API” for migration details. All demo and editor examples use
-the current API.
+To show your own models, pass a collection with an `id:` key path, so each node keeps its
+identity when the data changes:
+
+```swift
+LevelMap(lessons, id: \.id, route: .serpentine(), current: finished) { context in
+    LessonButton(lesson: context.level, state: context.state)
+}
+.levelMapSpacing(130)
+```
+
+## The camera
+
+Without a binding, the map opens on the player and keeps the current level in view until the
+person scrolls. Bind a `LevelMapCameraPosition` to frame the map yourself:
+
+```swift
+@State private var camera: LevelMapCameraPosition = .automatic
+
+var body: some View {
+    LevelMap(stops, id: \.id, route: .serpentine(), current: reached, position: $camera) { context in
+        StopPin(stop: context.level, state: context.state)
+    }
+    .levelMapAvatar { Walker() }
+    .levelMapProgress(toNext: walked)
+    .levelMapRecenterButton()
+}
+```
+
+- `.automatic` opens on the player and tracks progress.
+- `.level(_:anchor:)` frames any level, including a fractional one, without changing progress.
+- `.avatar(zoom:anchor:scalesMarkers:)` zooms in and follows the avatar, for a live walk. Set it
+  when the walk starts and `.automatic` when it ends.
+
+When the person scrolls, the map writes a value back whose `positionedByUser` is `true`, and the
+camera stays where they left it until you assign a new framing or they tap the recenter button.
+Animations you pass with `withAnimation` take precedence over the map's own, and the camera eases
+to its new framing when the level count, the content margins or the spacing change.
+
+## Upgrading from 0.3.0
+
+0.4.0 removes the superseded APIs rather than deprecating them:
+
+| Removed | Use instead |
+| --- | --- |
+| Three-argument `node:` and four-argument `placedNode:` builders | One `content:` builder receiving `LevelMapNodeContext` |
+| `.levelSpacing(_:)` | `.levelMapSpacing(_:)` |
+| `.levelMapFollowsAvatar(...)` | `camera = .avatar(...)` |
+| `.levelMapRecenter(on:)` | `camera = .automatic`, or `.levelMapRecenterButton()` |
+| `.levelMapFocusOffset(_:)` | `camera = .level(_:anchor:)`, or `.levelMapContentMargins(_:_:)` for panels |
+
+The minimum is now iOS 18. The DocC guide "Moving to the release API" has the details.
 
 ## Documentation
 
@@ -112,6 +157,8 @@ The DocC catalog has a guide for each part of the library. In Xcode, choose
 - **Designing routes:** segments, endless routes, custom segments and the editor.
 - **Themes and decorations:** ground, road styles, scenery and chapters.
 - **Endless maps and paging:** chunks, data sources and level positions.
+- **Layers, placement and the camera:** layers, marks, right-to-left placement and camera framing.
+- **Moving to the release API:** replacements for the APIs removed in 0.4.0.
 
 ## Demo app
 
