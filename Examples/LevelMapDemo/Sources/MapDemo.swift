@@ -163,7 +163,7 @@ struct MapDemo: View {
                     .shadow(color: .black.opacity(0.3), radius: 2, y: 2)
                     // Lifted clear of the node while standing at one, and down on the road
                     // between levels, at the end of the completed road.
-                    .offset(y: -(sample.nodeSize / 2 + 22) * nodeNearness)
+                    .offset(y: -(sample.nodeSize / 2 + 22) * CGFloat(nodeNearness))
             }
         }
         .levelMapProgress(toNext: 1 - metresLeft / Self.legLength)
