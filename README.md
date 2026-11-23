@@ -134,20 +134,6 @@ camera stays where they left it until you assign a new framing or they tap the r
 Animations you pass with `withAnimation` take precedence over the map's own, and the camera eases
 to its new framing when the level count, the content margins or the spacing change.
 
-## Upgrading from 0.3.0
-
-0.4.0 removes the superseded APIs rather than deprecating them:
-
-| Removed | Use instead |
-| --- | --- |
-| Three-argument `node:` and four-argument `placedNode:` builders | One `content:` builder receiving `LevelMapNodeContext` |
-| `.levelSpacing(_:)` | `.levelMapSpacing(_:)` |
-| `.levelMapFollowsAvatar(...)` | `camera = .avatar(...)` |
-| `.levelMapRecenter(on:)` | `camera = .automatic`, or `.levelMapRecenterButton()` |
-| `.levelMapFocusOffset(_:)` | `camera = .level(_:anchor:)`, or `.levelMapContentMargins(_:_:)` for panels |
-
-The minimum is now iOS 18. The DocC guide "Moving to the release API" has the details.
-
 ## Documentation
 
 The DocC catalog has a guide for each part of the library. In Xcode, choose
